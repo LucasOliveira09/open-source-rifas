@@ -1,0 +1,209 @@
+<main class="page-shell">
+  <header class="topbar">
+    <a class="brand" href="#inicio" aria-label="Rifas Iracema, início">
+      <span class="brand-mark" aria-hidden="true">I</span>
+      <span class="brand-copy">
+        <strong>IRACEMA</strong>
+        <span>RIFA DA ESCOLA</span>
+      </span>
+    </a>
+    <a class="topbar-link" href="#numeros">Ver números <span aria-hidden="true">↓</span></a>
+  </header>
+
+  <section class="hero" id="inicio" aria-labelledby="page-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="eyebrow-dot"></span> UMA AÇÃO DA COMUNIDADE ESCOLAR</p>
+      <h1 id="page-title">Um número.<br /><em>Uma chance.</em><br />Uma escola inteira.</h1>
+      <p class="hero-description">
+        Escolha seus números e participe da rifa da Escola Iracema. Os prêmios e o valor serão publicados aqui.
+      </p>
+      <a class="primary-link" href="#numeros">Escolher meus números <span aria-hidden="true">↘</span></a>
+    </div>
+
+    <div class="hero-art" aria-label="Rifa com 100 números disponíveis">
+      <div class="ticket-card">
+        <div class="ticket-topline"><span>RIFA IRACEMA</span><span>01 — 100</span></div>
+        <div class="ticket-number">100</div>
+        <div class="ticket-divider"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="ticket-bottomline"><span>SEU NÚMERO PODE ESTAR AQUI</span><span aria-hidden="true">✳</span></div>
+      </div>
+      <span class="art-note note-top">ESCOLHA O SEU</span>
+      <span class="art-note note-bottom">BOA SORTE!</span>
+      <span class="art-spark spark-one" aria-hidden="true">✳</span>
+      <span class="art-spark spark-two" aria-hidden="true">✦</span>
+    </div>
+  </section>
+
+  <section class="prizes-section" aria-labelledby="prizes-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">O QUE ESTÁ EM JOGO</p>
+        <h2 id="prizes-title">Prêmios da rifa</h2>
+      </div>
+      <span class="section-index">01 / 03</span>
+    </div>
+
+    @if (raffle(); as campaign) {
+      @if (campaign.prizes.length > 0) {
+        <div class="prize-list">
+          @for (prize of campaign.prizes; track prize.id) {
+            <article class="prize-item">
+              <span class="prize-id">{{ prize.id.toString().padStart(2, '0') }}</span>
+              @if (prize.imageUrl) {
+                <img class="prize-image" [src]="prize.imageUrl" [alt]="prize.title" />
+              }
+              <div><h3>{{ prize.title }}</h3><p>{{ prize.description }}</p></div>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="prize-empty">
+          <span class="prize-empty-icon" aria-hidden="true">✳</span>
+          <div><strong>Os prêmios serão anunciados em breve.</strong><p>Volte para conferir as novidades da rifa.</p></div>
+        </div>
+      }
+    }
+  </section>
+
+  <section class="numbers-section" id="numeros" aria-labelledby="numbers-title">
+    <div class="section-heading numbers-heading">
+      <div>
+        <p class="eyebrow">SUA ESCOLHA COMEÇA AQUI</p>
+        <h2 id="numbers-title">Escolha seus números</h2>
+      </div>
+      @if (raffle(); as campaign) {
+        <div class="availability"><strong>{{ campaign.availableNumbers }}</strong><span>de {{ campaign.totalNumbers }} disponíveis</span></div>
+      }
+    </div>
+
+    <div class="numbers-layout">
+      <div class="number-picker">
+        <div class="number-legend" aria-label="Legenda dos números">
+          <span><i class="legend-swatch available"></i> Disponível</span>
+          <span><i class="legend-swatch selected"></i> Selecionado</span>
+          <span><i class="legend-swatch unavailable"></i> Indisponível</span>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-panel" role="status" aria-live="polite">
+            <span class="loading-mark" aria-hidden="true">✳</span><span>Carregando números...</span>
+          </div>
+        } @else if (loadError()) {
+          <div class="error-panel" role="alert">
+            <p>{{ loadError() }}</p>
+            <button class="text-button" type="button" (click)="loadRaffle()">Tentar novamente</button>
+          </div>
+        } @else {
+          <div class="number-grid" role="group" aria-label="Números da rifa">
+            @for (ticket of numbers(); track ticket.number) {
+              <button
+                class="number-tile"
+                [class.is-selected]="isSelected(ticket.number)"
+                [class.is-unavailable]="ticket.status !== 'AVAILABLE'"
+                [disabled]="ticket.status !== 'AVAILABLE'"
+                [attr.aria-pressed]="isSelected(ticket.number)"
+                [attr.aria-label]="'Número ' + ticket.number + ', ' + (isSelected(ticket.number) ? 'selecionado' : statusLabel(ticket.status))"
+                type="button"
+                (click)="toggleNumber(ticket)">
+                {{ ticket.number.toString().padStart(2, '0') }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <aside class="selection-panel" aria-labelledby="selection-title">
+        <div class="selection-panel-head">
+          <p class="eyebrow">RESERVA DOS NÚMEROS</p>
+          <span class="selection-icon" aria-hidden="true">↗</span>
+        </div>
+        @if (purchase(); as payment) {
+          <h3 id="selection-title">{{ payment.status === 'PENDING_PAYMENT' ? 'Pague com Pix' : payment.status === 'PAID' ? 'Pagamento aprovado' : 'Pagamento encerrado' }}</h3>
+          @if (payment.status === 'PENDING_PAYMENT' && payment.pix; as pix) {
+            <p class="selection-count">Escaneie o QR Code ou copie o código Pix. A tela atualiza quando o pagamento for confirmado.</p>
+            @if (pix.qrCodeBase64) {
+              <img class="pix-qr" [src]="'data:image/jpeg;base64,' + pix.qrCodeBase64" alt="QR Code para pagar a compra via Pix" />
+            }
+            <label class="field-label" for="pix-copy">Pix Copia e Cola</label>
+            <textarea id="pix-copy" class="pix-code" readonly [value]="pix.copyPaste"></textarea>
+            <button class="copy-button" type="button" (click)="copyPixCode()">Copiar código Pix</button>
+            <p class="selection-footnote">Válido até {{ payment.expiresAt | date: 'dd/MM/yyyy HH:mm' }}. Números: {{ payment.numbers.join(', ') }}.</p>
+          } @else if (payment.status === 'PENDING_PAYMENT') {
+            <p class="selection-empty" role="status">O Mercado Pago está gerando o Pix. Esta tela será atualizada automaticamente.</p>
+          } @else if (payment.status === 'PAID') {
+            <p class="selection-empty">Compra confirmada. Seus números: {{ payment.numbers.join(', ') }}.</p>
+          } @else {
+            <p class="selection-empty">O pagamento não foi concluído. Escolha os números disponíveis e tente novamente.</p>
+          }
+        } @else {
+          <h3 id="selection-title">Sua seleção</h3>
+          @if (selectedNumbersList().length > 0) {
+            <p class="selection-count">{{ selectedNumbersList().length }} {{ selectedNumbersList().length === 1 ? 'número escolhido' : 'números escolhidos' }}</p>
+            <div class="selected-tags" aria-label="Números selecionados">
+              @for (number of selectedNumbersList(); track number) {
+                <span>{{ number.toString().padStart(2, '0') }}</span>
+              }
+            </div>
+            <button class="text-button clear-button" type="button" (click)="clearSelection()">Limpar seleção</button>
+          } @else {
+            <p class="selection-empty">Toque em um ou mais números disponíveis para adicioná-los à sua seleção.</p>
+          }
+
+          @if (raffle(); as campaign) {
+            <div class="selection-total">
+              <span>{{ campaign.unitPriceCents === null ? 'Valor por número' : 'Total da seleção' }}</span>
+              <strong>
+                @if (campaign.unitPriceCents === null) {
+                  A definir
+                } @else if (totalCents() !== null) {
+                  {{ (totalCents()! / 100) | currency: campaign.currency : 'symbol' : '1.2-2' : 'pt-BR' }}
+                }
+              </strong>
+            </div>
+
+            <form class="buyer-form" [formGroup]="buyerForm" (ngSubmit)="startPurchase()">
+              <label class="field-label" for="buyer-name">Nome</label>
+              <input id="buyer-name" formControlName="name" autocomplete="name" maxlength="160" />
+              @if (buyerForm.controls.name.touched && buyerForm.controls.name.invalid) {
+                <small class="field-error">Informe seu nome.</small>
+              }
+
+              <label class="field-label" for="buyer-email">E-mail</label>
+              <input id="buyer-email" type="email" formControlName="email" autocomplete="email" maxlength="254" />
+              @if (buyerForm.controls.email.touched && buyerForm.controls.email.invalid) {
+                <small class="field-error">Informe um e-mail válido.</small>
+              }
+
+              <label class="field-label" for="buyer-phone">Telefone</label>
+              <input id="buyer-phone" type="tel" formControlName="phone" autocomplete="tel" />
+              @if (buyerForm.controls.phone.touched && buyerForm.controls.phone.invalid) {
+                <small class="field-error">Informe seu telefone com DDD.</small>
+              }
+
+              @if (purchaseError()) {
+                <p class="purchase-error" role="alert">{{ purchaseError() }}</p>
+              }
+
+              <button class="checkout-button" type="submit" [disabled]="!campaign.purchaseEnabled || selectedNumbersList().length === 0 || buyerForm.invalid || isSubmitting()">
+                @if (isSubmitting()) { Gerando Pix... }
+                @else if (!campaign.purchaseEnabled) { Compra em breve }
+                @else { Gerar Pix }
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+            <p class="selection-footnote">O número só será confirmado após a aprovação do pagamento.</p>
+          }
+        }
+        @if (purchaseError() && purchase()) {
+          <p class="purchase-error" role="status">{{ purchaseError() }}</p>
+        }
+      </aside>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <a class="brand footer-brand" href="#inicio"><span class="brand-mark" aria-hidden="true">I</span><span class="brand-copy"><strong>IRACEMA</strong><span>RIFA DA ESCOLA</span></span></a>
+    <span>Uma iniciativa da Escola Iracema</span>
+    <a href="#inicio">Voltar ao início ↑</a>
+  </footer>
+</main>
