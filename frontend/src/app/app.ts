@@ -2,7 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { interval, startWith, switchMap, takeWhile } from 'rxjs';
+import { EMPTY, catchError, interval, startWith, switchMap, takeWhile } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchaseResponse, RaffleApi, RaffleDetails, RaffleNumber, RaffleNumberStatus } from './raffle-api';
 
@@ -70,6 +70,13 @@ export class App implements OnInit {
     this.selectedNumbers.set(new Set());
   }
 
+  protected continueShopping(): void {
+    this.purchase.set(null);
+    this.purchaseError.set('');
+    this.clearSelection();
+    this.reloadNumbers();
+  }
+
   protected startPurchase(): void {
     const raffle = this.raffle();
     if (!raffle?.purchaseEnabled || this.selectedNumbersList().length === 0 || this.buyerForm.invalid || this.isSubmitting()) {
@@ -84,6 +91,7 @@ export class App implements OnInit {
       next: (purchase) => {
         this.purchase.set(purchase);
         this.isSubmitting.set(false);
+        this.reloadNumbers();
         this.watchPurchase(purchase.id);
       },
       error: (error: HttpErrorResponse) => {
@@ -104,11 +112,17 @@ export class App implements OnInit {
   private watchPurchase(id: string): void {
     interval(5_000).pipe(
       startWith(0),
-      switchMap(() => this.raffleApi.getPurchase(id)),
+      switchMap(() => this.raffleApi.getPurchase(id).pipe(
+        catchError(() => {
+          this.purchaseError.set('Não foi possível atualizar o pagamento agora. A consulta será tentada novamente.');
+          return EMPTY;
+        }),
+      )),
       takeWhile((purchase) => purchase.status === 'PENDING_PAYMENT', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: (purchase) => {
+        this.purchaseError.set('');
         this.purchase.set(purchase);
         if (purchase.status !== 'PENDING_PAYMENT') {
           this.reloadNumbers();

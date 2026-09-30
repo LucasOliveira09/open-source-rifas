@@ -82,10 +82,13 @@ public class MercadoPagoClient {
 				throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "O Mercado Pago retornou uma resposta vazia.");
 			}
 			Integer totalPaidCents = cents(response.get("total_paid_amount"));
+			Map<?, ?> payment = firstPayment(response);
 			Map<?, ?> paymentMethod = firstPaymentMethod(response);
 			return new PixOrderStatus(
 					string(response, "id"), string(response, "external_reference"),
-					string(response, "status"), totalPaidCents,
+					string(response, "status"), string(response, "status_detail"), totalPaidCents,
+					string(payment, "status"), string(payment, "status_detail"),
+					string(paymentMethod, "id"), string(response, "currency_id"),
 					optionalString(paymentMethod, "qr_code"),
 					optionalString(paymentMethod, "qr_code_base64"),
 					optionalString(paymentMethod, "ticket_url"));
@@ -110,6 +113,9 @@ public class MercadoPagoClient {
 			}
 			return response;
 		} catch (RestClientResponseException exception) {
+			if (exception.getStatusCode().is4xxClientError()) {
+				throw new PixOrderRejectedException(exception);
+			}
 			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Não foi possível iniciar o pagamento Pix.");
 		} catch (RestClientException exception) {
 			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Não foi possível conectar ao Mercado Pago.");
@@ -117,6 +123,11 @@ public class MercadoPagoClient {
 	}
 
 	private static Map<?, ?> firstPaymentMethod(Map<?, ?> order) {
+		Object paymentMethod = firstPayment(order).get("payment_method");
+		return paymentMethod instanceof Map<?, ?> map ? map : Map.of();
+	}
+
+	private static Map<?, ?> firstPayment(Map<?, ?> order) {
 		Object transactionsValue = order.get("transactions");
 		if (!(transactionsValue instanceof Map<?, ?> transactions)) {
 			return Map.of();
@@ -125,8 +136,7 @@ public class MercadoPagoClient {
 		if (!(paymentsValue instanceof List<?> payments) || payments.isEmpty()) {
 			return Map.of();
 		}
-		Object paymentMethod = asMap(payments.getFirst()).get("payment_method");
-		return paymentMethod instanceof Map<?, ?> map ? map : Map.of();
+		return asMap(payments.getFirst());
 	}
 
 	private static Map<?, ?> asMap(Object value) {
@@ -164,7 +174,23 @@ public class MercadoPagoClient {
 	}
 
 	public record PixOrderStatus(
-		String orderId, String externalReference, String status, Integer totalPaidCents,
+		String orderId, String externalReference, String status, String statusDetail, Integer totalPaidCents,
+		String paymentStatus, String paymentStatusDetail, String paymentMethodId, String currencyId,
 		String copyPaste, String qrCodeBase64, String paymentUrl) {
+
+		public boolean isApprovedPix() {
+			return "processed".equals(status)
+					&& "accredited".equals(statusDetail)
+					&& "processed".equals(paymentStatus)
+					&& "accredited".equals(paymentStatusDetail)
+					&& "pix".equals(paymentMethodId)
+					&& (currencyId == null || "BRL".equals(currencyId));
+		}
+	}
+
+	public static class PixOrderRejectedException extends RuntimeException {
+		public PixOrderRejectedException(Throwable cause) {
+			super("O Mercado Pago recusou a criação da ordem Pix.", cause);
+		}
 	}
 }

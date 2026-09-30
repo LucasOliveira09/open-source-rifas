@@ -8,31 +8,26 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import br.com.iracema.rifas.purchase.PurchaseStore;
 
 @RestController
 @RequestMapping("/api/raffle")
 public class RaffleController {
 
 	private final JdbcTemplate jdbcTemplate;
-	private final PurchaseStore purchaseStore;
 	private final String mercadoPagoAccessToken;
 	private final String mercadoPagoWebhookSecret;
 
 	public RaffleController(
 			JdbcTemplate jdbcTemplate,
-			PurchaseStore purchaseStore,
 			@Value("${app.mercado-pago.access-token:}") String mercadoPagoAccessToken,
 			@Value("${app.mercado-pago.webhook-secret:}") String mercadoPagoWebhookSecret) {
 		this.jdbcTemplate = jdbcTemplate;
-		this.purchaseStore = purchaseStore;
 		this.mercadoPagoAccessToken = mercadoPagoAccessToken;
 		this.mercadoPagoWebhookSecret = mercadoPagoWebhookSecret;
 	}
 
 	@GetMapping
 	public RaffleResponse getRaffle() {
-		purchaseStore.releaseExpiredReservations();
 		RaffleSummary raffle = jdbcTemplate.queryForObject("""
 				SELECT r.id,
 				       r.title,
@@ -63,7 +58,6 @@ public class RaffleController {
 
 	@GetMapping("/numbers")
 	public List<RaffleNumberResponse> getNumbers() {
-		purchaseStore.releaseExpiredReservations();
 		return jdbcTemplate.query("""
 				SELECT number_value, status
 				FROM raffle_number

@@ -26,7 +26,6 @@ public class PurchaseStore {
 
 	@Transactional
 	public ReservedPurchase reserve(PurchaseRequest request, Instant expiresAt) {
-		releaseExpiredReservations();
 		RafflePrice raffle = jdbcTemplate.queryForObject("""
 				SELECT id, unit_price_cents
 				FROM raffle
@@ -85,20 +84,6 @@ public class PurchaseStore {
 	}
 
 	@Transactional
-	public void releaseExpiredReservations() {
-		jdbcTemplate.update("""
-				UPDATE purchase
-				SET status = 'EXPIRED', updated_at = now()
-				WHERE status = 'PENDING_PAYMENT' AND expires_at <= now()
-				""");
-		jdbcTemplate.update("""
-				UPDATE raffle_number
-				SET status = 'AVAILABLE', reserved_by_purchase = NULL, reserved_until = NULL
-				WHERE status = 'RESERVED' AND reserved_until <= now()
-				""");
-	}
-
-	@Transactional
 	public void failAndRelease(UUID purchaseId) {
 		jdbcTemplate.update("""
 				UPDATE purchase
@@ -116,9 +101,14 @@ public class PurchaseStore {
 	public void savePixOrder(UUID purchaseId, PixOrder order) {
 		int updated = jdbcTemplate.update("""
 				UPDATE purchase
-				SET mercado_pago_order_id = ?, pix_copy_paste = ?, pix_qr_code_base64 = ?, payment_url = ?, updated_at = now()
-				WHERE id = ? AND status = 'PENDING_PAYMENT'
-				""", order.orderId(), order.copyPaste(), order.qrCodeBase64(), order.paymentUrl(), purchaseId);
+				SET mercado_pago_order_id = COALESCE(mercado_pago_order_id, ?),
+				    pix_copy_paste = COALESCE(?, pix_copy_paste),
+				    pix_qr_code_base64 = COALESCE(?, pix_qr_code_base64),
+				    payment_url = COALESCE(?, payment_url),
+				    updated_at = now()
+				WHERE id = ? AND status IN ('PENDING_PAYMENT', 'PAID')
+				  AND (mercado_pago_order_id IS NULL OR mercado_pago_order_id = ?)
+				""", order.orderId(), order.copyPaste(), order.qrCodeBase64(), order.paymentUrl(), purchaseId, order.orderId());
 		if (updated != 1) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "A compra não está mais aguardando pagamento.");
 		}
@@ -159,8 +149,17 @@ public class PurchaseStore {
 
 		String savedOrderId = jdbcTemplate.queryForObject(
 				"SELECT mercado_pago_order_id FROM purchase WHERE id = ?", String.class, purchaseId);
-		if (!order.orderId().equals(savedOrderId)) {
+		if (savedOrderId != null && !order.orderId().equals(savedOrderId)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "A order recebida não corresponde à compra.");
+		}
+		if (savedOrderId == null) {
+			int linked = jdbcTemplate.update("""
+					UPDATE purchase SET mercado_pago_order_id = ?, updated_at = now()
+					WHERE id = ? AND status = 'PENDING_PAYMENT' AND mercado_pago_order_id IS NULL
+					""", order.orderId(), purchaseId);
+			if (linked != 1) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "Não foi possível associar a order à compra.");
+			}
 		}
 
 		int inserted = jdbcTemplate.update("""
@@ -180,23 +179,35 @@ public class PurchaseStore {
 				""", order.copyPaste(), order.qrCodeBase64(), order.paymentUrl(), purchaseId);
 
 		if ("processed".equals(order.status())) {
-			if (order.totalPaidCents() == null || order.totalPaidCents() != purchase.totalCents()) {
-				throw new ResponseStatusException(HttpStatus.CONFLICT, "O valor confirmado não corresponde ao total da compra.");
+			if (!order.isApprovedPix() || order.totalPaidCents() == null || order.totalPaidCents() != purchase.totalCents()) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "O Pix não está aprovado pelo valor integral da compra.");
 			}
+			int linkedNumbers = jdbcTemplate.queryForObject(
+					"SELECT COUNT(*) FROM purchase_number WHERE purchase_id = ?", Integer.class, purchase.id());
 			jdbcTemplate.update("UPDATE purchase SET status = 'PAID', updated_at = now() WHERE id = ?", purchase.id());
-			jdbcTemplate.update("""
+			int soldNumbers = jdbcTemplate.update("""
 					UPDATE raffle_number
 					SET status = 'PAID', reserved_until = NULL
 					WHERE reserved_by_purchase = ? AND status = 'RESERVED'
 					""", purchase.id());
-		} else if ("cancelled".equals(order.status()) || "canceled".equals(order.status()) || "expired".equals(order.status())) {
-			String finalStatus = "expired".equals(order.status()) ? "EXPIRED" : "FAILED";
+			if (linkedNumbers == 0 || soldNumbers != linkedNumbers) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "Os números reservados não correspondem à compra.");
+			}
+		} else if ("cancelled".equals(order.status()) || "canceled".equals(order.status())
+				|| "expired".equals(order.status()) || "failed".equals(order.status())) {
+			String finalStatus = "expired".equals(order.status()) || "canceled".equals(order.status())
+					|| "cancelled".equals(order.status()) ? "EXPIRED" : "FAILED";
+			int linkedNumbers = jdbcTemplate.queryForObject(
+					"SELECT COUNT(*) FROM purchase_number WHERE purchase_id = ?", Integer.class, purchase.id());
 			jdbcTemplate.update("UPDATE purchase SET status = ?, updated_at = now() WHERE id = ?", finalStatus, purchase.id());
-			jdbcTemplate.update("""
+			int releasedNumbers = jdbcTemplate.update("""
 					UPDATE raffle_number
 					SET status = 'AVAILABLE', reserved_by_purchase = NULL, reserved_until = NULL
 					WHERE reserved_by_purchase = ? AND status = 'RESERVED'
 					""", purchase.id());
+			if (linkedNumbers == 0 || releasedNumbers != linkedNumbers) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "Os números reservados não correspondem à compra.");
+			}
 		}
 	}
 

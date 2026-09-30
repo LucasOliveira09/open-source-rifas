@@ -9,6 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import br.com.iracema.rifas.payment.MercadoPagoClient;
 import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrder;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderRejectedException;
 import br.com.iracema.rifas.purchase.PurchaseStore.ReservedPurchase;
 
 @Service
@@ -29,14 +30,15 @@ public class PurchaseService {
 
 		Instant expiresAt = Instant.now().plus(mercadoPagoClient.pixExpiration());
 		ReservedPurchase purchase = purchaseStore.reserve(request, expiresAt);
+		PixOrder pixOrder;
 		try {
-			PixOrder pixOrder = mercadoPagoClient.createPixOrder(purchase);
-			purchaseStore.savePixOrder(purchase.id(), pixOrder);
-			return purchaseStore.getPurchase(purchase.id());
-		} catch (RuntimeException exception) {
+			pixOrder = mercadoPagoClient.createPixOrder(purchase);
+		} catch (PixOrderRejectedException exception) {
 			purchaseStore.failAndRelease(purchase.id());
-			throw exception;
+			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "O Mercado Pago recusou a criação do Pix.", exception);
 		}
+		purchaseStore.savePixOrder(purchase.id(), pixOrder);
+		return purchaseStore.getPurchase(purchase.id());
 	}
 
 	public PurchaseResponse get(UUID purchaseId) {

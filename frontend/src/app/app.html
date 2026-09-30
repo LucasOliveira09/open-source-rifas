@@ -1,65 +1,72 @@
-<main class="page-shell">
+<main class="page-shell" id="inicio">
   <header class="topbar">
-    <a class="brand" href="#inicio" aria-label="Rifas Iracema, início">
-      <span class="brand-mark" aria-hidden="true">I</span>
+    <a class="brand" href="#inicio" aria-label="Escola Iracema, início">
+      <img class="brand-logo" src="/assets/logo-iracema.jpg" alt="" />
       <span class="brand-copy">
-        <strong>IRACEMA</strong>
-        <span>RIFA DA ESCOLA</span>
+        <strong>EMEF IRACEMA</strong>
+        <span>MARCONDES ALCÂNTARA</span>
       </span>
     </a>
-    <a class="topbar-link" href="#numeros">Ver números <span aria-hidden="true">↓</span></a>
+    <nav class="topbar-nav" aria-label="Navegação principal">
+      <a href="#premio">O prêmio</a>
+      <a href="#numeros">Números</a>
+      <a class="nav-cta" href="#numeros">Participar <span aria-hidden="true">↓</span></a>
+    </nav>
   </header>
 
-  <section class="hero" id="inicio" aria-labelledby="page-title">
-    <div class="hero-copy">
-      <p class="eyebrow"><span class="eyebrow-dot"></span> UMA AÇÃO DA COMUNIDADE ESCOLAR</p>
-      <h1 id="page-title">Um número.<br /><em>Uma chance.</em><br />Uma escola inteira.</h1>
-      <p class="hero-description">
-        Escolha seus números e participe da rifa da Escola Iracema. Os prêmios e o valor serão publicados aqui.
-      </p>
-      <a class="primary-link" href="#numeros">Escolher meus números <span aria-hidden="true">↘</span></a>
+  <section class="hero" aria-labelledby="page-title">
+    <img class="hero-image" src="/assets/escola-iracema.jpeg" alt="Fachada da EMEF Iracema Marcondes Alcântara durante uma atividade escolar" />
+    <div class="hero-shade"></div>
+    <div class="hero-content">
+      <p class="hero-kicker"><span aria-hidden="true">✳</span> UMA AÇÃO DA COMUNIDADE ESCOLAR</p>
+      <h1 id="page-title">Nossa escola.<br /><em>Nossa rifa.</em></h1>
+      <p class="hero-description">Participe, concorra a um prêmio especial e ajude a fortalecer os projetos da Escola Iracema.</p>
+      <a class="primary-link" href="#numeros">Escolher meus números <span aria-hidden="true">→</span></a>
     </div>
-
-    <div class="hero-art" aria-label="Rifa com 100 números disponíveis">
-      <div class="ticket-card">
-        <div class="ticket-topline"><span>RIFA IRACEMA</span><span>01 — 100</span></div>
-        <div class="ticket-number">100</div>
-        <div class="ticket-divider"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        <div class="ticket-bottomline"><span>SEU NÚMERO PODE ESTAR AQUI</span><span aria-hidden="true">✳</span></div>
-      </div>
-      <span class="art-note note-top">ESCOLHA O SEU</span>
-      <span class="art-note note-bottom">BOA SORTE!</span>
-      <span class="art-spark spark-one" aria-hidden="true">✳</span>
-      <span class="art-spark spark-two" aria-hidden="true">✦</span>
+    <div class="hero-caption"><span class="caption-line"></span> EMEF IRACEMA MARCONDES ALCÂNTARA</div>
+    <div class="hero-seal" aria-label="Rifa solidária da escola">
+      <span>RIFA</span><strong>100</strong><span>NÚMEROS</span>
     </div>
   </section>
 
-  <section class="prizes-section" aria-labelledby="prizes-title">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">O QUE ESTÁ EM JOGO</p>
-        <h2 id="prizes-title">Prêmios da rifa</h2>
-      </div>
-      <span class="section-index">01 / 03</span>
-    </div>
+  <section class="intro-band" aria-label="Sobre a rifa">
+    <span class="intro-star" aria-hidden="true">✳</span>
+    <p>Uma oportunidade de participar e contribuir com a comunidade escolar.</p>
+    @if (raffle(); as campaign) {
+      <a href="#numeros"><strong>{{ campaign.availableNumbers }}</strong> números disponíveis <span aria-hidden="true">↘</span></a>
+    }
+  </section>
 
+  <section class="prize-section" id="premio" aria-labelledby="prize-title">
+    <div class="section-heading prize-heading">
+      <div>
+        <p class="section-kicker"><span>01</span> PRÊMIO DA RIFA</p>
+        <h2 id="prize-title">Diversão<br /><em>pra todo mundo.</em></h2>
+        <p class="prize-description">Concorra a uma mesa de futebol de botão e chame a família para a partida.</p>
+        @if (raffle(); as campaign) {
+          @if (campaign.unitPriceCents !== null) {
+            <div class="prize-price"><span>PARTICIPE A PARTIR DE</span><strong>{{ campaign.unitPriceCents / 100 | currency: campaign.currency : 'symbol' : '1.2-2' : 'pt-BR' }} <small>/ número</small></strong></div>
+          } @else {
+            <div class="prize-price"><span>VALOR DA RIFA</span><strong>Em breve</strong></div>
+          }
+        }
+        <a class="text-link" href="#numeros">Escolher um número <span aria-hidden="true">→</span></a>
+      </div>
+      <figure class="prize-photo-wrap">
+        <img class="prize-photo" src="/assets/premio-futebol-de-botao.jpeg" alt="Mesa verde de futebol de botão que será o prêmio da rifa" />
+        <figcaption><span>O PRÊMIO</span><strong>Mesa de futebol de botão</strong></figcaption>
+        <span class="photo-stamp" aria-hidden="true">BOA<br />SORTE!</span>
+      </figure>
+    </div>
     @if (raffle(); as campaign) {
       @if (campaign.prizes.length > 0) {
-        <div class="prize-list">
+        <div class="additional-prizes" aria-label="Outros prêmios">
           @for (prize of campaign.prizes; track prize.id) {
-            <article class="prize-item">
-              <span class="prize-id">{{ prize.id.toString().padStart(2, '0') }}</span>
-              @if (prize.imageUrl) {
-                <img class="prize-image" [src]="prize.imageUrl" [alt]="prize.title" />
-              }
-              <div><h3>{{ prize.title }}</h3><p>{{ prize.description }}</p></div>
+            <article class="additional-prize">
+              @if (prize.imageUrl) { <img [src]="prize.imageUrl" [alt]="prize.title" /> }
+              <div><span>PRÊMIO {{ prize.id.toString().padStart(2, '0') }}</span><h3>{{ prize.title }}</h3><p>{{ prize.description }}</p></div>
             </article>
           }
-        </div>
-      } @else {
-        <div class="prize-empty">
-          <span class="prize-empty-icon" aria-hidden="true">✳</span>
-          <div><strong>Os prêmios serão anunciados em breve.</strong><p>Volte para conferir as novidades da rifa.</p></div>
         </div>
       }
     }
@@ -68,11 +75,12 @@
   <section class="numbers-section" id="numeros" aria-labelledby="numbers-title">
     <div class="section-heading numbers-heading">
       <div>
-        <p class="eyebrow">SUA ESCOLHA COMEÇA AQUI</p>
-        <h2 id="numbers-title">Escolha seus números</h2>
+        <p class="section-kicker"><span>02</span> SUA ESCOLHA</p>
+        <h2 id="numbers-title">Qual vai ser <em>o seu?</em></h2>
+        <p class="numbers-intro">Escolha um ou mais números disponíveis e participe da rifa.</p>
       </div>
       @if (raffle(); as campaign) {
-        <div class="availability"><strong>{{ campaign.availableNumbers }}</strong><span>de {{ campaign.totalNumbers }} disponíveis</span></div>
+        <div class="availability"><strong>{{ campaign.availableNumbers }}</strong><span>de {{ campaign.totalNumbers }}<br />disponíveis</span></div>
       }
     </div>
 
@@ -80,31 +88,18 @@
       <div class="number-picker">
         <div class="number-legend" aria-label="Legenda dos números">
           <span><i class="legend-swatch available"></i> Disponível</span>
-          <span><i class="legend-swatch selected"></i> Selecionado</span>
+          <span><i class="legend-swatch selected"></i> Sua escolha</span>
           <span><i class="legend-swatch unavailable"></i> Indisponível</span>
         </div>
 
         @if (isLoading()) {
-          <div class="loading-panel" role="status" aria-live="polite">
-            <span class="loading-mark" aria-hidden="true">✳</span><span>Carregando números...</span>
-          </div>
+          <div class="loading-panel" role="status" aria-live="polite"><span aria-hidden="true">✳</span>Carregando números...</div>
         } @else if (loadError()) {
-          <div class="error-panel" role="alert">
-            <p>{{ loadError() }}</p>
-            <button class="text-button" type="button" (click)="loadRaffle()">Tentar novamente</button>
-          </div>
+          <div class="error-panel" role="alert"><p>{{ loadError() }}</p><button class="text-button" type="button" (click)="loadRaffle()">Tentar novamente</button></div>
         } @else {
           <div class="number-grid" role="group" aria-label="Números da rifa">
             @for (ticket of numbers(); track ticket.number) {
-              <button
-                class="number-tile"
-                [class.is-selected]="isSelected(ticket.number)"
-                [class.is-unavailable]="ticket.status !== 'AVAILABLE'"
-                [disabled]="ticket.status !== 'AVAILABLE'"
-                [attr.aria-pressed]="isSelected(ticket.number)"
-                [attr.aria-label]="'Número ' + ticket.number + ', ' + (isSelected(ticket.number) ? 'selecionado' : statusLabel(ticket.status))"
-                type="button"
-                (click)="toggleNumber(ticket)">
+              <button class="number-tile" [class.is-selected]="isSelected(ticket.number)" [class.is-unavailable]="ticket.status !== 'AVAILABLE'" [disabled]="ticket.status !== 'AVAILABLE' || purchase()?.status === 'PENDING_PAYMENT'" [attr.aria-pressed]="isSelected(ticket.number)" [attr.aria-label]="'Número ' + ticket.number + ', ' + (isSelected(ticket.number) ? 'selecionado' : statusLabel(ticket.status))" type="button" (click)="toggleNumber(ticket)">
                 {{ ticket.number.toString().padStart(2, '0') }}
               </button>
             }
@@ -113,97 +108,59 @@
       </div>
 
       <aside class="selection-panel" aria-labelledby="selection-title">
-        <div class="selection-panel-head">
-          <p class="eyebrow">RESERVA DOS NÚMEROS</p>
-          <span class="selection-icon" aria-hidden="true">↗</span>
-        </div>
+        <div class="selection-panel-head"><p class="section-kicker"><span>03</span> FINALIZAR</p><span class="selection-icon" aria-hidden="true">↗</span></div>
         @if (purchase(); as payment) {
           <h3 id="selection-title">{{ payment.status === 'PENDING_PAYMENT' ? 'Pague com Pix' : payment.status === 'PAID' ? 'Pagamento aprovado' : 'Pagamento encerrado' }}</h3>
           @if (payment.status === 'PENDING_PAYMENT' && payment.pix; as pix) {
             <p class="selection-count">Escaneie o QR Code ou copie o código Pix. A tela atualiza quando o pagamento for confirmado.</p>
-            @if (pix.qrCodeBase64) {
-              <img class="pix-qr" [src]="'data:image/jpeg;base64,' + pix.qrCodeBase64" alt="QR Code para pagar a compra via Pix" />
-            }
-            <label class="field-label" for="pix-copy">Pix Copia e Cola</label>
-            <textarea id="pix-copy" class="pix-code" readonly [value]="pix.copyPaste"></textarea>
+            @if (pix.qrCodeBase64) { <img class="pix-qr" [src]="'data:image/jpeg;base64,' + pix.qrCodeBase64" alt="QR Code para pagar a compra via Pix" /> }
+            <label class="field-label" for="pix-copy">Pix Copia e Cola</label><textarea id="pix-copy" class="pix-code" readonly [value]="pix.copyPaste"></textarea>
             <button class="copy-button" type="button" (click)="copyPixCode()">Copiar código Pix</button>
             <p class="selection-footnote">Válido até {{ payment.expiresAt | date: 'dd/MM/yyyy HH:mm' }}. Números: {{ payment.numbers.join(', ') }}.</p>
           } @else if (payment.status === 'PENDING_PAYMENT') {
             <p class="selection-empty" role="status">O Mercado Pago está gerando o Pix. Esta tela será atualizada automaticamente.</p>
           } @else if (payment.status === 'PAID') {
             <p class="selection-empty">Compra confirmada. Seus números: {{ payment.numbers.join(', ') }}.</p>
+            <button class="checkout-button" type="button" (click)="continueShopping()">Comprar mais números <span aria-hidden="true">→</span></button>
           } @else {
-            <p class="selection-empty">O pagamento não foi concluído. Escolha os números disponíveis e tente novamente.</p>
+            <p class="selection-empty">O pagamento não foi concluído. Escolha números disponíveis e tente novamente.</p>
+            <button class="checkout-button" type="button" (click)="continueShopping()">Voltar aos números <span aria-hidden="true">→</span></button>
           }
         } @else {
-          <h3 id="selection-title">Sua seleção</h3>
+          <h3 id="selection-title">Seus números</h3>
           @if (selectedNumbersList().length > 0) {
             <p class="selection-count">{{ selectedNumbersList().length }} {{ selectedNumbersList().length === 1 ? 'número escolhido' : 'números escolhidos' }}</p>
-            <div class="selected-tags" aria-label="Números selecionados">
-              @for (number of selectedNumbersList(); track number) {
-                <span>{{ number.toString().padStart(2, '0') }}</span>
-              }
-            </div>
+            <div class="selected-tags" aria-label="Números selecionados">@for (number of selectedNumbersList(); track number) { <span>{{ number.toString().padStart(2, '0') }}</span> }</div>
             <button class="text-button clear-button" type="button" (click)="clearSelection()">Limpar seleção</button>
           } @else {
-            <p class="selection-empty">Toque em um ou mais números disponíveis para adicioná-los à sua seleção.</p>
+            <p class="selection-empty">Toque em um número disponível para adicioná-lo à sua seleção.</p>
           }
 
           @if (raffle(); as campaign) {
-            <div class="selection-total">
-              <span>{{ campaign.unitPriceCents === null ? 'Valor por número' : 'Total da seleção' }}</span>
-              <strong>
-                @if (campaign.unitPriceCents === null) {
-                  A definir
-                } @else if (totalCents() !== null) {
-                  {{ (totalCents()! / 100) | currency: campaign.currency : 'symbol' : '1.2-2' : 'pt-BR' }}
-                }
-              </strong>
-            </div>
-
+            <div class="selection-total"><span>{{ campaign.unitPriceCents === null ? 'Valor por número' : 'Total da seleção' }}</span><strong>@if (campaign.unitPriceCents === null) { A definir } @else if (totalCents() !== null) { {{ (totalCents()! / 100) | currency: campaign.currency : 'symbol' : '1.2-2' : 'pt-BR' }} }</strong></div>
             <form class="buyer-form" [formGroup]="buyerForm" (ngSubmit)="startPurchase()">
-              <label class="field-label" for="buyer-name">Nome</label>
-              <input id="buyer-name" formControlName="name" autocomplete="name" maxlength="160" />
-              @if (buyerForm.controls.name.touched && buyerForm.controls.name.invalid) {
-                <small class="field-error">Informe seu nome.</small>
-              }
-
-              <label class="field-label" for="buyer-email">E-mail</label>
-              <input id="buyer-email" type="email" formControlName="email" autocomplete="email" maxlength="254" />
-              @if (buyerForm.controls.email.touched && buyerForm.controls.email.invalid) {
-                <small class="field-error">Informe um e-mail válido.</small>
-              }
-
-              <label class="field-label" for="buyer-phone">Telefone</label>
-              <input id="buyer-phone" type="tel" formControlName="phone" autocomplete="tel" />
-              @if (buyerForm.controls.phone.touched && buyerForm.controls.phone.invalid) {
-                <small class="field-error">Informe seu telefone com DDD.</small>
-              }
-
-              @if (purchaseError()) {
-                <p class="purchase-error" role="alert">{{ purchaseError() }}</p>
-              }
-
+              <label class="field-label" for="buyer-name">Nome</label><input id="buyer-name" formControlName="name" autocomplete="name" maxlength="160" />
+              @if (buyerForm.controls.name.touched && buyerForm.controls.name.invalid) { <small class="field-error">Informe seu nome.</small> }
+              <label class="field-label" for="buyer-email">E-mail</label><input id="buyer-email" type="email" formControlName="email" autocomplete="email" maxlength="254" />
+              @if (buyerForm.controls.email.touched && buyerForm.controls.email.invalid) { <small class="field-error">Informe um e-mail válido.</small> }
+              <label class="field-label" for="buyer-phone">Telefone</label><input id="buyer-phone" type="tel" formControlName="phone" autocomplete="tel" />
+              @if (buyerForm.controls.phone.touched && buyerForm.controls.phone.invalid) { <small class="field-error">Informe seu telefone com DDD.</small> }
+              @if (purchaseError()) { <p class="purchase-error" role="alert">{{ purchaseError() }}</p> }
               <button class="checkout-button" type="submit" [disabled]="!campaign.purchaseEnabled || selectedNumbersList().length === 0 || buyerForm.invalid || isSubmitting()">
-                @if (isSubmitting()) { Gerando Pix... }
-                @else if (!campaign.purchaseEnabled) { Compra em breve }
-                @else { Gerar Pix }
-                <span aria-hidden="true">→</span>
+                @if (isSubmitting()) { Gerando Pix... } @else if (!campaign.purchaseEnabled) { Em breve } @else { Gerar Pix }<span aria-hidden="true">→</span>
               </button>
             </form>
             <p class="selection-footnote">O número só será confirmado após a aprovação do pagamento.</p>
           }
         }
-        @if (purchaseError() && purchase()) {
-          <p class="purchase-error" role="status">{{ purchaseError() }}</p>
-        }
+        @if (purchaseError() && purchase()) { <p class="purchase-error" role="status">{{ purchaseError() }}</p> }
       </aside>
     </div>
   </section>
 
   <footer class="site-footer">
-    <a class="brand footer-brand" href="#inicio"><span class="brand-mark" aria-hidden="true">I</span><span class="brand-copy"><strong>IRACEMA</strong><span>RIFA DA ESCOLA</span></span></a>
-    <span>Uma iniciativa da Escola Iracema</span>
+    <a class="brand footer-brand" href="#inicio"><img class="brand-logo" src="/assets/logo-iracema.jpg" alt="" /><span class="brand-copy"><strong>EMEF IRACEMA</strong><span>MARCONDES ALCÂNTARA</span></span></a>
+    <span>Uma iniciativa da comunidade da Escola Iracema</span>
     <a href="#inicio">Voltar ao início ↑</a>
   </footer>
 </main>

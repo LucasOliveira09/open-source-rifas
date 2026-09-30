@@ -15,10 +15,11 @@ Permitir que participantes vejam os prêmios e os 100 números de uma rifa da es
 
 1. O frontend consulta a rifa fixa, seus prêmios e a disponibilidade dos 100 números na API.
 2. O comprador escolhe um ou mais números disponíveis e informa nome, e-mail e telefone.
-3. O backend valida os dados e reserva os números em uma transação no PostgreSQL. A reserva deve impedir que duas compras obtenham o mesmo número.
+3. O backend valida os dados e reserva os números em uma transação no PostgreSQL. A reserva impede que duas compras obtenham o mesmo número enquanto o Pix estiver pendente.
 4. O backend calcula o preço usando os dados cadastrados no servidor e cria uma order Pix com chave de idempotência. Nenhum token privado é enviado ao navegador.
 5. O backend retorna ao frontend o QR Code e o código Pix Copia e Cola; o frontend os exibe enquanto consulta o estado da compra.
-6. O Mercado Pago envia um Webhook. O backend valida a assinatura, consulta a order na API do Mercado Pago e só então atualiza a compra e os números. O processamento precisa ser idempotente.
+6. O Mercado Pago envia um Webhook. O backend valida a assinatura e consulta a order na API do Mercado Pago. Em uma transação, só marca compra e números como pagos se a order e o pagamento estiverem `processed`/`accredited`, o método for Pix e o valor integral corresponder ao total da compra.
+7. Orders canceladas, expiradas ou falhas liberam a reserva quando o estado final é confirmado pelo Mercado Pago. A aplicação não libera números apenas pelo próprio relógio, pois uma confirmação Pix pode chegar com atraso.
 
 O redirecionamento de retorno do navegador serve para exibir o resultado ao comprador; não confirma pagamento.
 
@@ -28,7 +29,7 @@ O redirecionamento de retorno do navegador serve para exibir o resultado ao comp
 - `prize`: rifa, descrição, ordem e imagem opcional.
 - `raffle_number`: rifa, número de 1 a 100 e status (`AVAILABLE`, `RESERVED`, `PAID`). Deve haver uma restrição única por rifa e número.
 - `purchase`: dados do comprador, status, total em centavos, referência externa e datas.
-- `purchase_number`: associação entre compra e números escolhidos.
+- `purchase_number`: histórico de números vinculados a tentativas de compra; números de tentativas não pagas podem ser associados a outra compra.
 - `payment_event`: identificador do evento/pagamento Mercado Pago para auditoria e idempotência.
 
 Não armazenar dados de cartão. O token privado do Mercado Pago e o segredo de Webhook ficam somente em variáveis de ambiente do backend.
@@ -55,10 +56,11 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 
 - A API persiste rifa, prêmios, números, compras e pagamentos em PostgreSQL.
 - Cada rifa possui exatamente 100 números identificados de 1 a 100.
-- Números pagos ou reservados não podem ser comprados por outra pessoa.
+- Números reservados não podem ser comprados por outra pessoa; números pagos são permanentes.
 - O valor enviado ao Mercado Pago é calculado pelo backend.
 - Uma notificação inválida não altera o status da compra.
 - Uma notificação repetida não duplica pagamentos ou libera números pagos.
+- O Webhook confirma o valor e o método antes de marcar os números como pagos.
 - O frontend apresenta os estados de disponibilidade e encaminha o comprador ao checkout.
 
 ## Decisões pendentes
