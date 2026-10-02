@@ -92,12 +92,17 @@ h2 em { color: $blue; }
 .number-legend span { align-items: center; gap: 7px; color: $muted; font-size: 10px; }
 .legend-swatch { width: 12px; height: 12px; border: 1px solid #b8c7d3; background: white; }
 .legend-swatch.selected { border-color: $navy; background: $navy; }
-.legend-swatch.unavailable { border-color: #e3e7e9; background: #e3e7e9; }
+.legend-swatch.pending { border-color: #d8a300; background: #f6c844; }
+.legend-swatch.paid { border-color: #176bc1; background: #2f83d5; }
 .number-grid { display: grid; grid-template-columns: repeat(10, minmax(34px, 1fr)); gap: 7px; }
-.number-tile { display: grid; min-height: 42px; place-items: center; border: 1px solid #d9e2e9; background: white; color: $ink; cursor: pointer; font-size: 11px; font-variant-numeric: tabular-nums; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+.number-tile { display: grid; min-height: 49px; align-content: center; justify-items: center; gap: 3px; padding: 3px 1px; border: 1px solid #d9e2e9; background: white; color: $ink; cursor: pointer; font-size: 11px; font-variant-numeric: tabular-nums; transition: border-color .15s ease, background .15s ease, color .15s ease; }
 .number-tile:hover:not(:disabled), .number-tile:focus-visible { outline: 2px solid $blue; outline-offset: 2px; border-color: $blue; }
 .number-tile.is-selected { border-color: $navy; background: $navy; color: white; }
-.number-tile.is-unavailable { border-color: #e8ebed; background: #e8ebed; color: #8995a0; cursor: not-allowed; text-decoration: line-through; }
+.number-tile.is-unavailable { border-color: #e8ebed; background: #e8ebed; color: #8995a0; cursor: not-allowed; }
+.unavailable-number { text-decoration: line-through; }
+.number-status { min-height: 9px; padding: 1px 3px; border-radius: 2px; font-size: 7px; font-weight: 850; line-height: 1; letter-spacing: .04em; text-decoration: none; }
+.number-status.is-pending { background: #f6c844; color: #573c00; }
+.number-status.is-paid { background: #2f83d5; color: white; }
 .selection-panel { width: 300px; flex: 0 0 300px; padding: 23px; border-top: 4px solid $gold; background: white; box-shadow: 0 8px 28px rgba(22,49,74,.07); }
 .selection-panel-head { justify-content: space-between; align-items: flex-start; }
 .selection-panel-head .section-kicker { margin-bottom: 16px; font-size: 8px; }

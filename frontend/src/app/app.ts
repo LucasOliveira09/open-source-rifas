@@ -59,9 +59,9 @@ export class App implements OnInit {
       case 'AVAILABLE':
         return 'Disponível';
       case 'RESERVED':
-        return 'Reservado';
+        return 'Pix pendente';
       case 'PAID':
-        return 'Vendido';
+        return 'Paga';
     }
   }
 
