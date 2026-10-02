@@ -22,7 +22,7 @@ Prepare o arquivo de configuração local uma vez:
 Copy-Item .env.example .env
 ```
 
-Abra `.env` e preencha `MERCADO_PAGO_ACCESS_TOKEN` com uma credencial `APP_USR` compatível com Checkout Transparente / Orders. Para produção, use a conta vendedora; para sandbox, use um usuário de teste com sua credencial `APP_USR` e o e-mail de comprador de teste com domínio `@testuser.com`. Credenciais antigas com prefixo `TEST-` não são compatíveis com essa API. Veja a [referência oficial de criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
+Abra `.env` e preencha `MERCADO_PAGO_ACCESS_TOKEN` com uma credencial `APP_USR` compatível com Checkout Transparente / Orders. Para produção, use a conta vendedora; para sandbox, use um usuário de teste com sua credencial `APP_USR`. Credenciais antigas com prefixo `TEST-` não são compatíveis com essa API. Veja a [referência oficial de criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
 
 Preencha também `MERCADO_PAGO_WEBHOOK_SECRET` com o segredo de assinatura gerado no painel Webhooks da mesma integração. As duas variáveis são necessárias para habilitar o checkout. O arquivo `.env` é ignorado pelo Git. O `.env.example` contém apenas instruções e valores de desenvolvimento. Reinicie o backend depois de atualizar as credenciais.
 
@@ -51,6 +51,8 @@ O Angular ficará disponível em `http://localhost:4200`. A API Spring Boot usa 
 O banco é preparado automaticamente pelo Flyway quando a API iniciar. As migrações criam a rifa e seus números de 1 a 100. Cada número custa R$ 5,00. Os prêmios também serão exibidos assim que forem cadastrados.
 
 O Spring Boot lê as variáveis do `.env` ao iniciar, e o Docker Compose usa o mesmo arquivo para o banco. O código Pix vence após 24 horas por padrão; ajuste `PIX_EXPIRATION` no formato ISO 8601, de 30 minutos a 30 dias.
+
+O comprador informa somente nome e telefone. O backend gera um e-mail fictício por compra no formato `rifa-<UUID>@example.com`, armazena esse valor no banco e o utiliza como `payer.email` na criação do Pix. Ajuste `PIX_BUYER_EMAIL_DOMAIN` para alterar o domínio; em sandbox, configure `testuser.com`, conforme a [referência do Mercado Pago](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post). A aceitação do domínio e do conteúdo do e-mail é validada pelo provedor. A aplicação não possui envio de e-mails.
 
 No painel do Mercado Pago, configure o evento **Order (Mercado Pago)** para `https://<seu-dominio>/api/webhooks/mercadopago` e copie o segredo gerado para `MERCADO_PAGO_WEBHOOK_SECRET`. Em desenvolvimento, a URL também precisa estar publicamente acessível por HTTPS. O backend confirma a assinatura e consulta a order ao Mercado Pago; só marca a compra e os números como pagos quando o Pix estiver aprovado pelo valor integral. Orders canceladas, expiradas ou falhas liberam os números após a confirmação do estado final. Números pendentes não são liberados apenas porque passou o prazo local, para evitar vender uma rifa cujo Pix tenha sido pago com Webhook atrasado.
 

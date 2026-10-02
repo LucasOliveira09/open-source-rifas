@@ -139,8 +139,6 @@
             <form class="buyer-form" [formGroup]="buyerForm" (ngSubmit)="startPurchase()">
               <label class="field-label" for="buyer-name">Nome</label><input id="buyer-name" formControlName="name" autocomplete="name" maxlength="160" />
               @if (buyerForm.controls.name.touched && buyerForm.controls.name.invalid) { <small class="field-error">Informe seu nome.</small> }
-              <label class="field-label" for="buyer-email">E-mail</label><input id="buyer-email" type="email" formControlName="email" autocomplete="email" maxlength="254" />
-              @if (buyerForm.controls.email.touched && buyerForm.controls.email.invalid) { <small class="field-error">Informe um e-mail válido.</small> }
               <label class="field-label" for="buyer-phone">Telefone</label><input id="buyer-phone" type="tel" formControlName="phone" autocomplete="tel" />
               @if (buyerForm.controls.phone.touched && buyerForm.controls.phone.invalid) { <small class="field-error">Informe seu telefone com DDD.</small> }
               @if (purchaseError()) { <p class="purchase-error" role="alert">{{ purchaseError() }}</p> }

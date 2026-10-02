@@ -14,7 +14,7 @@ Permitir que participantes vejam os prêmios e os 100 números de uma rifa da es
 ## Fluxo de compra
 
 1. O frontend consulta a rifa fixa, seus prêmios e a disponibilidade dos 100 números na API.
-2. O comprador escolhe um ou mais números disponíveis e informa nome, e-mail e telefone.
+2. O comprador escolhe um ou mais números disponíveis e informa nome e telefone. O backend gera um e-mail fictício por compra para a integração com o Mercado Pago, usando o domínio configurado em `PIX_BUYER_EMAIL_DOMAIN` (padrão `example.com`; `testuser.com` para sandbox).
 3. O backend valida os dados e reserva os números em uma transação no PostgreSQL. A reserva impede que duas compras obtenham o mesmo número enquanto o Pix estiver pendente.
 4. O backend calcula o preço usando os dados cadastrados no servidor e cria uma order Pix com chave de idempotência. Nenhum token privado é enviado ao navegador.
 5. O backend retorna ao frontend o QR Code e o código Pix Copia e Cola; o frontend os exibe enquanto consulta o estado da compra.
@@ -28,7 +28,7 @@ O redirecionamento de retorno do navegador serve para exibir o resultado ao comp
 - `raffle`: título, descrição, status e preço unitário em centavos de BRL. A primeira versão tem uma rifa fixa.
 - `prize`: rifa, descrição, ordem e imagem opcional.
 - `raffle_number`: rifa, número de 1 a 100 e status (`AVAILABLE`, `RESERVED`, `PAID`). Deve haver uma restrição única por rifa e número.
-- `purchase`: dados do comprador, status, total em centavos, referência externa e datas.
+- `purchase`: nome e telefone do comprador, e-mail fictício gerado pelo backend, status, total em centavos, referência externa e datas.
 - `purchase_number`: histórico de números vinculados a tentativas de compra; números de tentativas não pagas podem ser associados a outra compra.
 - `payment_event`: identificador do evento/pagamento Mercado Pago para auditoria e idempotência.
 
@@ -38,7 +38,7 @@ Não armazenar dados de cartão. O token privado do Mercado Pago e o segredo de 
 
 - `GET /api/raffle`: exibir detalhes e prêmios da rifa fixa.
 - `GET /api/raffle/numbers`: listar os 100 números e sua disponibilidade sem dados pessoais.
-- `POST /api/purchases`: validar comprador e números, registrar a compra e iniciar o checkout.
+- `POST /api/purchases`: receber `name`, `phone` e `numbers`, validar comprador e números, registrar a compra e iniciar o checkout. O e-mail fictício é gerado no servidor.
 - `GET /api/purchases/{purchaseId}`: consultar status, números e dados Pix da própria compra, sem retornar os dados pessoais do comprador.
 - `POST /api/webhooks/mercadopago`: receber e validar notificações do Mercado Pago.
 
@@ -48,7 +48,7 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 
 - Página pública mostra os prêmios, o preço e a grade de 100 números.
 - Números disponíveis podem ser selecionados; reservados ou pagos não podem.
-- Formulário coleta nome, e-mail e telefone antes de iniciar o checkout.
+- Formulário coleta nome e telefone antes de iniciar o checkout.
 - Após a API criar o checkout, o navegador segue para a URL do Mercado Pago.
 - A tela de retorno consulta o status da compra à API; não confia nos parâmetros de retorno para declarar pagamento aprovado.
 

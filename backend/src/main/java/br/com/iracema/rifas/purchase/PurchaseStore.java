@@ -4,8 +4,10 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -19,9 +21,16 @@ import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderStatus;
 public class PurchaseStore {
 
 	private final JdbcTemplate jdbcTemplate;
+	private final String buyerEmailDomain;
 
-	public PurchaseStore(JdbcTemplate jdbcTemplate) {
+	public PurchaseStore(JdbcTemplate jdbcTemplate,
+			@Value("${app.pix.buyer-email-domain:example.com}") String buyerEmailDomain) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.buyerEmailDomain = buyerEmailDomain.trim().toLowerCase(Locale.ROOT);
+		if (this.buyerEmailDomain.length() > 190 || !this.buyerEmailDomain.matches(
+				"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+")) {
+			throw new IllegalArgumentException("PIX_BUYER_EMAIL_DOMAIN deve conter um domínio válido.");
+		}
 	}
 
 	@Transactional
@@ -59,11 +68,12 @@ public class PurchaseStore {
 
 		int totalCents = Math.multiplyExact(raffle.unitPriceCents(), requestedNumbers.size());
 		UUID purchaseId = UUID.randomUUID();
+		String buyerEmail = "rifa-" + purchaseId + "@" + buyerEmailDomain;
 		jdbcTemplate.update("""
 				INSERT INTO purchase (
 					id, raffle_id, buyer_name, buyer_email, buyer_phone, total_cents, status, expires_at
 				) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_PAYMENT', ?)
-				""", purchaseId, raffle.id(), request.name().trim(), request.email().trim().toLowerCase(),
+				""", purchaseId, raffle.id(), request.name().trim(), buyerEmail,
 				request.phone().trim(), totalCents, Timestamp.from(expiresAt));
 
 		for (NumberReservation number : available) {
@@ -80,7 +90,7 @@ public class PurchaseStore {
 				SET status = 'RESERVED', reserved_by_purchase = ?, reserved_until = ?
 				WHERE id IN (""" + numberIds + ")", updateParameters.toArray());
 
-		return new ReservedPurchase(purchaseId, request.email().trim().toLowerCase(), totalCents, expiresAt, requestedNumbers);
+		return new ReservedPurchase(purchaseId, buyerEmail, totalCents, expiresAt, requestedNumbers);
 	}
 
 	@Transactional

@@ -31,7 +31,6 @@ export class App implements OnInit {
   });
   protected readonly buyerForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(160)] }),
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email, Validators.maxLength(254)] }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[+()0-9 .-]{8,32}$/)] }),
   });
 

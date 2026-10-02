@@ -48,7 +48,7 @@ export class RaffleApi {
     });
   }
 
-  createPurchase(input: { name: string; email: string; phone: string; numbers: number[] }) {
+  createPurchase(input: { name: string; phone: string; numbers: number[] }) {
     return this.http.post<PurchaseResponse>('/api/purchases', input);
   }
 

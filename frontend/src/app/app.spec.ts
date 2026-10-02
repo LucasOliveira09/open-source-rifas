@@ -40,7 +40,7 @@ describe('Compra de rifas', () => {
   function chooseAndFill() {
     (fixture.nativeElement.querySelector('.number-tile') as HTMLButtonElement).click();
     for (const [id, value] of Object.entries({
-      'buyer-name': 'Comprador de teste', 'buyer-email': 'teste@example.com', 'buyer-phone': '11999999999',
+      'buyer-name': 'Comprador de teste', 'buyer-phone': '11999999999',
     })) {
       const input = fixture.nativeElement.querySelector('#' + id) as HTMLInputElement;
       input.value = value;
@@ -57,7 +57,7 @@ describe('Compra de rifas', () => {
     flushRaffle();
     expect(fixture.nativeElement.querySelectorAll('.number-tile').length).toBe(100);
     expect(fixture.nativeElement.querySelector('.prize-price').textContent).toContain('5,00');
-    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Nossa rifa.');
+    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('SEBRAE');
   });
 
   it('bloqueia números reservados e vendidos e calcula o total da seleção', () => {
@@ -93,7 +93,7 @@ describe('Compra de rifas', () => {
     submit();
     const request = http.expectOne('/api/purchases');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ name: 'Comprador de teste', email: 'teste@example.com', phone: '11999999999', numbers: [1] });
+    expect(request.request.body).toEqual({ name: 'Comprador de teste', phone: '11999999999', numbers: [1] });
     request.flush(purchase);
     flushRaffle();
     http.expectOne('/api/purchases/' + purchase.id).flush(purchase);

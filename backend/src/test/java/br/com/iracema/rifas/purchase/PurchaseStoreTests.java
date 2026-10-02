@@ -20,7 +20,7 @@ class PurchaseStoreTests {
     @Autowired JdbcTemplate jdbc;
 
     private ReservedPurchase reserve(Integer... numbers) {
-        return store.reserve(new PurchaseRequest("Comprador de teste", "teste@example.com", "11999999999", List.of(numbers)), Instant.now().plusSeconds(3600));
+        return store.reserve(new PurchaseRequest("Comprador de teste", "11999999999", List.of(numbers)), Instant.now().plusSeconds(3600));
     }
 
     private PixOrderStatus status(ReservedPurchase purchase, String state, int paidCents, String method) {
