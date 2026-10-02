@@ -8,6 +8,7 @@ frontend/dist/
 frontend/.angular/
 
 # Local configuration and secrets
+.local/
 .env
 .env.vps
 .env.*

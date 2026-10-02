@@ -22,7 +22,9 @@ Prepare o arquivo de configuração local uma vez:
 Copy-Item .env.example .env
 ```
 
-Abra `.env` e preencha `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` com as credenciais de teste da conta Mercado Pago. O arquivo `.env` é ignorado pelo Git. O `.env.example` contém apenas os nomes das variáveis.
+Abra `.env` e preencha `MERCADO_PAGO_ACCESS_TOKEN` com uma credencial `APP_USR` compatível com Checkout Transparente / Orders. Para produção, use a conta vendedora; para sandbox, use um usuário de teste com sua credencial `APP_USR` e o e-mail de comprador de teste com domínio `@testuser.com`. Credenciais antigas com prefixo `TEST-` não são compatíveis com essa API. Veja a [referência oficial de criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
+
+Preencha também `MERCADO_PAGO_WEBHOOK_SECRET` com o segredo de assinatura gerado no painel Webhooks da mesma integração. As duas variáveis são necessárias para habilitar o checkout. O arquivo `.env` é ignorado pelo Git. O `.env.example` contém apenas instruções e valores de desenvolvimento. Reinicie o backend depois de atualizar as credenciais.
 
 Inicie o PostgreSQL local:
 
