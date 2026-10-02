@@ -65,11 +65,10 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 
 ## Decisões pendentes
 
-- Qual será o preço de cada número?
 - Por quanto tempo um número fica reservado enquanto o pagamento está pendente?
 - A escola escolherá manualmente o número sorteado ou usará um resultado externo (por exemplo, Loteria Federal)?
 - Quem poderá cadastrar/alterar prêmios e acompanhar as compras? O painel administrativo fica fora do primeiro fluxo público até essa regra ser definida.
-- O preço ficará pendente até ser informado; a API deve recusar a criação de cobranças enquanto ele não estiver definido.
+- O preço unitário da rifa Iracema é R$ 5,00 (500 centavos de BRL).
 
 ## Referências oficiais
 

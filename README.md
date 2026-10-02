@@ -46,7 +46,7 @@ npm start
 
 O Angular ficará disponível em `http://localhost:4200`. A API Spring Boot usa `http://localhost:8080`.
 
-O banco é preparado automaticamente pelo Flyway quando a API iniciar. A primeira migração cria a rifa e os números de 1 a 100. O preço começa sem configuração, então o checkout permanece desabilitado até a escola definir o valor. Os prêmios também serão exibidos assim que forem cadastrados.
+O banco é preparado automaticamente pelo Flyway quando a API iniciar. As migrações criam a rifa e seus números de 1 a 100. Cada número custa R$ 5,00. Os prêmios também serão exibidos assim que forem cadastrados.
 
 O Spring Boot lê as variáveis do `.env` ao iniciar, e o Docker Compose usa o mesmo arquivo para o banco. O código Pix vence após 24 horas por padrão; ajuste `PIX_EXPIRATION` no formato ISO 8601, de 30 minutos a 30 dias.
 
@@ -54,4 +54,39 @@ No painel do Mercado Pago, configure o evento **Order (Mercado Pago)** para `htt
 
 ## Escopo em definição
 
-O fluxo e as decisões pendentes estão em [docs/especificacao.md](docs/especificacao.md). A tela pública, as consultas da rifa, o formulário de compra e a integração Pix estão implementados. O checkout permanece desabilitado até que o preço seja definido e as credenciais do Mercado Pago sejam configuradas. Os prêmios ainda precisam ser cadastrados; não há painel administrativo nesta primeira etapa.
+O fluxo e as decisões pendentes estão em [docs/especificacao.md](docs/especificacao.md). A tela pública, as consultas da rifa, o formulário de compra e a integração Pix estão implementados. O checkout permanece desabilitado até que as credenciais do Mercado Pago sejam configuradas. Os prêmios ainda precisam ser cadastrados; não há painel administrativo nesta primeira etapa.
+
+## Implantar em VPS com acesso Tailscale
+
+A pilha de produção está em `compose.vps.yaml`. Ela mantém PostgreSQL e API sem portas publicadas; somente o Nginx fica ligado a `127.0.0.1:8088` na VPS. O Tailscale Serve fornece HTTPS e acesso privado aos dispositivos autorizados na tailnet.
+
+Na VPS Linux, instale Docker com o plugin Compose e Tailscale, conecte a VPS à mesma tailnet e clone este repositório. No diretório do projeto:
+
+```bash
+cp .env.example .env.vps
+```
+
+Edite `.env.vps` e defina uma senha forte para `POSTGRES_PASSWORD`. O preço da rifa é R$ 5,00 por número. Enquanto as credenciais do Mercado Pago estiverem vazias, a página abre, mas o checkout permanece desativado.
+
+Construa e inicie os serviços:
+
+```bash
+docker compose --env-file .env.vps -f compose.vps.yaml up -d --build
+```
+
+Configure o Tailscale Serve na VPS:
+
+```bash
+sudo tailscale serve 8088
+```
+
+O comando informa o endereço HTTPS `.ts.net` privado para abrir nos dispositivos conectados à tailnet. O HTTPS do Serve precisa estar habilitado nas configurações da tailnet. Para verificar serviços e logs:
+
+```bash
+docker compose --env-file .env.vps -f compose.vps.yaml ps
+docker compose --env-file .env.vps -f compose.vps.yaml logs -f backend frontend
+```
+
+Os dados do PostgreSQL ficam no volume Docker `rifas-vps-data`. Para atualizar, obtenha a versão nova do repositório e repita o comando `up -d --build`. Para voltar à versão anterior, restaure o código anterior e repita o comando; o volume do banco é preservado.
+
+**Atenção ao webhook de pagamentos:** Tailscale Serve é privado, então o Mercado Pago não consegue acessar por ele. Para habilitar pagamentos reais, o endpoint `/api/webhooks/mercadopago` precisa de uma URL que o Mercado Pago possa alcançar pela internet com HTTPS. Não habilite Tailscale Funnel para a aplicação inteira sem decidir que ela deve ficar pública; ele abre acesso pela internet. Enquanto essa rota externa não for definida, mantenha o checkout desativado.

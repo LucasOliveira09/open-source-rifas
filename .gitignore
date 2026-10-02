@@ -9,6 +9,7 @@ frontend/.angular/
 
 # Local configuration and secrets
 .env
+.env.vps
 .env.*
 !.env.example
 
