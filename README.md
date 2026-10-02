@@ -58,6 +58,8 @@ No painel do Mercado Pago, configure o evento **Order (Mercado Pago)** para `htt
 
 ## Escopo em definição
 
+O contrato da criação do Pix, o recebimento de webhooks e a comparação com a documentação oficial estão em [docs/mercado-pago-pix-webhooks.md](docs/mercado-pago-pix-webhooks.md).
+
 O fluxo e as decisões pendentes estão em [docs/especificacao.md](docs/especificacao.md). A tela pública, as consultas da rifa, o formulário de compra e a integração Pix estão implementados. O checkout permanece desabilitado até que as credenciais do Mercado Pago sejam configuradas. Os prêmios ainda precisam ser cadastrados; não há painel administrativo nesta primeira etapa.
 
 ## Implantar em VPS com acesso Tailscale

@@ -72,9 +72,9 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 
 ## Referências oficiais
 
-- [Mercado Pago — Pix com Checkout Transparente e Orders API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/pix)
-- [Mercado Pago — notificações Webhook e validação da assinatura](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-orders/notifications?scope=prod)
-- [Mercado Pago — comparação de APIs de Checkout Pro](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-orders/overview)
+- [Mercado Pago — Pix com Checkout Transparente e Orders API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/websites/pix)
+- [Mercado Pago — notificações Webhook e validação da assinatura](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/notifications)
+- [Mercado Pago — criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post)
 - [Spring Boot — configuração JDBC, JPA e repositórios](https://docs.spring.io/spring-boot/how-to/data-access.html)
 - [Spring Boot — migrações Flyway](https://docs.spring.io/spring-boot/how-to/data-initialization.html)
 - [Angular — configuração de HttpClient](https://angular.dev/guide/http/setup)
