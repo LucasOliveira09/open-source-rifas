@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderStatus;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPaymentStatus;
 import br.com.iracema.rifas.purchase.PurchaseStore;
 
 @RestController
@@ -48,24 +48,27 @@ public class MercadoPagoWebhookController {
 		}
 
 		String type = queryType == null ? String.valueOf(notification.get("type")) : queryType;
-		if (!"order".equals(type)) {
+		if (!"payment".equals(type)) {
 			return ResponseEntity.ok().build();
 		}
+		if (!dataId.matches("[0-9]{1,64}")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador do pagamento inválido.");
+		}
 
-		PixOrderStatus order = mercadoPagoClient.getOrderStatus(dataId);
-		if (!dataId.equals(order.orderId())) {
-			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "A ordem retornada não corresponde à notificação.");
+		PixPaymentStatus payment = mercadoPagoClient.getPaymentStatus(dataId);
+		if (!dataId.equals(payment.paymentId())) {
+			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "O pagamento retornado não corresponde à notificação.");
 		}
 
 		UUID purchaseId;
 		try {
-			purchaseId = UUID.fromString(order.externalReference());
+			purchaseId = UUID.fromString(payment.externalReference());
 		} catch (IllegalArgumentException | NullPointerException exception) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A referência da compra é inválida.");
 		}
 
-		String eventId = notification.get("id") == null ? requestId : notification.get("id").toString();
-		purchaseStore.applyProviderOrder(eventId, order, purchaseId);
+		String eventId = "payment:" + (notification.get("id") == null ? requestId : notification.get("id").toString());
+		purchaseStore.applyProviderPayment(eventId, payment, purchaseId);
 		return ResponseEntity.ok().build();
 	}
 }

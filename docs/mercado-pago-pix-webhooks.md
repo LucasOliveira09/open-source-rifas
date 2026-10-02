@@ -1,78 +1,77 @@
-# Mercado Pago: Pix e webhooks
+# Mercado Pago: Pix com Payments e webhooks
 
-Estudo da documentação oficial e comparação com o código em 02/10/2026.
-
-## Rotas da aplicação
-
-| Rota local | Responsabilidade |
-| --- | --- |
-| `POST /api/purchases` | Receber nome, telefone e números, reservar no PostgreSQL e iniciar o Pix |
-| `GET /api/purchases/{id}` | Consultar a compra persistida para atualizar a tela |
-| `POST /api/webhooks/mercadopago` | Validar notificações e atualizar a compra e os números |
-
-O projeto utiliza Checkout Transparente com Orders API. O preço vem do banco: R$ 5,00 por número. `external_reference` e a chave de idempotência usam o UUID da compra, enquanto o e-mail vem de `PIX_BUYER_EMAIL` no `.env`.
+Integração atualizada em 02/10/2026 para Checkout Transparente / Payments API.
 
 ## Criar o Pix
 
-O backend envia `POST https://api.mercadopago.com/v1/orders`, com `Authorization: Bearer <access-token>`, `Content-Type: application/json` e `X-Idempotency-Key: <UUID-da-compra>`. Valor e soma das transações devem corresponder. Veja a [referência de criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
+`POST /api/purchases` recebe nome, telefone e números. O backend reserva os números no PostgreSQL e calcula R$ 5,00 por número. O e-mail é lido de `PIX_BUYER_EMAIL`, sem solicitar e-mail no formulário nem enviar mensagens.
 
-Exemplo para um número:
+O backend envia `POST https://api.mercadopago.com/v1/payments` com `Authorization: Bearer <access-token>`, `Content-Type: application/json` e `X-Idempotency-Key: <UUID-da-compra>`. Exemplo ilustrativo:
 
 ```json
 {
-  "type": "online",
-  "total_amount": "5.00",
+  "transaction_amount": 5.00,
+  "description": "Rifa SEBRAE - 3º ano A e B",
+  "payment_method_id": "pix",
   "external_reference": "<UUID-da-compra>",
-  "processing_mode": "automatic",
-  "transactions": {
-    "payments": [{
-      "amount": "5.00",
-      "payment_method": { "id": "pix", "type": "bank_transfer" },
-      "expiration_time": "PT24H"
-    }]
-  },
+  "date_of_expiration": "<data ISO 8601 com offset>",
   "payer": { "email": "<PIX_BUYER_EMAIL>" }
 }
 ```
 
-O retorno inclui o identificador da order. Os dados de pagamento ficam em `transactions.payments[0].payment_method`: `qr_code`, `qr_code_base64` e `ticket_url`. Um Pix aguardando transferência normalmente tem `action_required`/`waiting_transfer`. A geração pode ser assíncrona; uma atualização posterior pode trazer o QR Code. Veja o [guia oficial de Pix](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/websites/pix).
+`transaction_amount` é um número decimal. `date_of_expiration` usa o prazo da reserva (padrão 24 horas; configuração de 30 minutos a 30 dias). Se `MERCADO_PAGO_NOTIFICATION_URL` estiver preenchida com uma URL HTTPS pública, ela também será enviada como `notification_url`. Se estiver vazia, configure a URL pelo painel do Mercado Pago.
 
-## Receber o webhook
+O ID de pagamento retornado é numérico. O backend persiste o ID e os dados de `point_of_interaction.transaction_data`: `qr_code_base64`, `qr_code` e `ticket_url`. O contrato público `pix.qrCodeBase64`, `pix.copyPaste` e `pix.paymentUrl` permanece o mesmo, permitindo exibir o QR Code no próprio site.
 
-Cadastre uma URL HTTPS acessível ao Mercado Pago terminando em `/api/webhooks/mercadopago`, selecione **Order (Mercado Pago)** no painel e salve o segredo gerado em `MERCADO_PAGO_WEBHOOK_SECRET`. O POST chega com query `data.id=<ORDER-ID>&type=order`, corpo JSON e headers `x-signature` e `x-request-id`. A confirmação HTTP deve chegar em até 22 segundos; o provedor repete entregas sem confirmação. Veja a [documentação de notificações de Orders](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/notifications).
+Referências: [criação de pagamentos](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-payment/post) e [Pix com Payments](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix).
 
-O handler atual passa assinatura, request ID, data ID e segredo ao validador do SDK Java. O [código oficial do validador](https://github.com/mercadopago/sdk-java/blob/master/src/main/java/com/mercadopago/webhook/WebhookSignatureValidator.java) calcula HMAC-SHA256 sobre `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` e compara o resultado com `v1`. A normalização remove espaços externos e preserva a capitalização do ID.
+## Configurar e receber o webhook
 
-Após validar a origem, consulte `GET https://api.mercadopago.com/v1/orders/{id}` com o token privado para obter o estado da order. Veja a [referência de consulta](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/get-order/get).
+1. Em **Suas integrações**, selecione a mesma aplicação das credenciais.
+2. Em **Webhooks**, configure `https://<seu-dominio>/api/webhooks/mercadopago` no ambiente correspondente ao token.
+3. Selecione **Pagamentos** (`payment`), substituindo a seleção anterior de Order.
+4. Copie a **Assinatura secreta** para `MERCADO_PAGO_WEBHOOK_SECRET` e reinicie o backend se o valor mudar.
 
-## Regras implementadas no projeto
+A URL precisa ser acessível pela internet com HTTPS. `localhost` e Tailscale Serve privado não recebem notificações reais do Mercado Pago.
 
-- A criação reserva os números e calcula o total no servidor.
-- O segredo e o token são necessários para habilitar o checkout.
-- O webhook consulta a order e usa seu `external_reference` para localizar a compra; o estado recebido no corpo não aprova a compra sozinho.
-- A confirmação exige order e pagamento `processed`/`accredited`, método `pix` e `total_paid_amount` correspondente ao total integral. Uma moeda informada deve ser BRL.
-- Compra e números passam a PAID em uma transação. Eventos repetidos são tratados com idempotência; compras já pagas permanecem pagas.
-- Cancelamento, expiração ou falha confirmados pelo provedor liberam os números. Um timeout local de criação mantém a reserva, pois pode haver uma order criada sem resposta recebida.
-- O frontend consulta o estado no banco a cada cinco segundos e aguarda o webhook para refletir a aprovação.
+O POST de webhook chega com query `data.id=<PAYMENT-ID>&type=payment`, headers `x-signature` e `x-request-id` e corpo semelhante a:
 
-## Pontos de atenção encontrados
+```json
+{
+  "id": 12345,
+  "type": "payment",
+  "action": "payment.updated",
+  "data": { "id": "123456789" }
+}
+```
 
-1. O handler atual consulta o provedor e atualiza o banco antes de devolver 200. O cliente HTTP não tem timeouts explícitos: uma demora do provedor ou do banco pode ultrapassar o prazo. Para responder antes do processamento sem perder eventos, é necessário persistir a notificação numa fila durável e processá-la com retentativas; apenas disparar uma tarefa em memória não garante a entrega.
-2. Falta validar uma entrega real pela internet com a URL pública, o segredo correto e a order correspondente. Uma simulação no painel com ID inexistente não confirma um pagamento.
-3. O teste local anterior foi recusado pelo provedor. Depois da troca de credenciais, a geração real e a confirmação ainda precisam ser verificadas novamente.
-4. Um e-mail fictício é uma configuração da aplicação; sua aceitação depende das regras do provedor. Em sandbox, o domínio precisa ser `@testuser.com`, conforme a [referência de criação](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
+O SDK oficial valida HMAC-SHA256 usando a assinatura secreta. Sem assinatura válida, retorna 401 antes de consultar o provedor ou alterar o banco. Notificações assinadas de outros tópicos são ignoradas com 200.
 
-O estudo não equivale a uma validação de pagamento real. O backend foi recompilado e reiniciado após mover o e-mail para o `.env`; não houve nova cobrança durante este estudo.
+Para `payment`, o backend consulta `GET https://api.mercadopago.com/v1/payments/{id}` usando o token privado, confere o ID retornado e usa `external_reference` para localizar a compra. O corpo do webhook não aprova uma compra sozinho. Veja a [documentação oficial de Webhooks](https://www.mercadopago.com.br/developers/pt/docs/links-and-debts/additional-content/your-integrations/notifications/webhooks).
 
-## Diagnóstico da recusa com o token atualizado — 02/10/2026
+## Confirmação no banco
 
-- O token configurado tem formato de produção (`APP_USR`), e `GET /users/me` retornou 200 para uma conta brasileira ativa, sem a identificação de usuário de teste.
-- `POST /v1/orders` com um corpo vazio deliberadamente inválido retornou 403 e `PA_UNAUTHORIZED_RESULT_FROM_POLICIES`: `At least one policy returned UNAUTHORIZED.` Não foram enviados dados de compra nesse diagnóstico. A recusa de autorização antecedeu a validação do corpo; essa requisição não comprova a aceitação do payload Pix completo.
-- Com o mesmo token, `GET /v1/payments/search` retornou 200. A aceitação nessa API não comprova permissão para criar Orders nem para criar pagamentos.
-- A última tentativa de compra estava `FAILED`, sem order associada. A API local retornou os 100 números como `AVAILABLE`.
+- A compra e os números só passam a `PAID` após um webhook válido e consulta ao provedor: `status=approved`, `status_detail=accredited`, método `pix`, tipo `bank_transfer` e moeda `BRL`.
+- `transaction_amount` e `transaction_details.total_paid_amount` devem corresponder ao total integral calculado no servidor.
+- O ID precisa corresponder ao pagamento associado à compra. A coluna tem restrição de unicidade.
+- Se o webhook chegar antes de a resposta de criação ser salva, ele pode associar o pagamento a uma compra pendente pelo UUID. A resposta de criação posterior só aceita o mesmo ID.
+- A atualização de compra, números e evento é transacional. Eventos repetidos são deduplicados; compras pagas permanecem pagas.
+- Pagamentos `cancelled`, `canceled`, `expired` ou `rejected` liberam números reservados. Apenas passar o prazo local não os libera.
+- Em timeout ou resposta ambígua da criação, a reserva permanece, pois o pagamento pode ter sido criado. Recusas definitivas de criação liberam a reserva.
+- A página consulta `GET /api/purchases/{id}` para refletir a confirmação, sem expor os dados pessoais do comprador.
 
-A [referência oficial de criação de Orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post) documenta restrições de aplicação/permissões para 403 e bloqueio ou revogação de chaves para esse código de política. As respostas observadas não permitem concluir que a conta inteira está bloqueada: outros recursos aceitaram o token.
+## Migração do histórico de Orders
 
-No painel **Suas integrações**, confira se a aplicação das credenciais está configurada para **Checkout Transparente com Orders**. Se a configuração estiver correta, contate o suporte do Mercado Pago informando a rota `POST /v1/orders`, HTTP 403 e o código `PA_UNAUTHORIZED_RESULT_FROM_POLICIES`, sem compartilhar o Access Token. A liberação depende do provedor; alterar o segredo de webhook não corrige autorização para criar Orders.
+`V5__add_mercado_pago_payment_ids.sql` adiciona `mercado_pago_payment_id` à compra e ao evento, mantendo as colunas de Orders e o histórico. IDs `ORD...` não são copiados para IDs de Payments. O código impede associar um Payment a uma compra que já tenha um ID de Order.
 
-O backend agora registra o status HTTP da recusa e o UUID da compra, sem token, e-mail ou corpo da resposta. A mensagem enviada ao frontend diferencia restrição de integração (403), credenciais rejeitadas (401) e outras recusas. Após a liberação, ainda é necessário validar a geração do QR Code e a confirmação por webhook.
+O receptor atual processa somente `payment`. Antes de aplicar esta versão em um ambiente com Orders pendentes, essas cobranças precisam ser reconciliadas/canceladas na integração anterior; preservar o histórico não processa novos webhooks de Orders. Localmente, os 100 números estavam disponíveis antes da troca.
+
+Para voltar ao código anterior, as novas colunas podem permanecer no banco; os registros de Payments precisam ser reconciliados antes de voltar a processar apenas Orders. A migração Flyway já aplicada não deve ser editada nem removida.
+
+## Diagnóstico e limites
+
+Antes da migração, o token atualizado foi aceito por `GET /users/me` e `GET /v1/payments/search` (200). `POST /v1/orders` com corpo vazio deliberadamente inválido retornou 403, código `PA_UNAUTHORIZED_RESULT_FROM_POLICIES`. Esse diagnóstico não criou cobrança e não prova permissão de criação em Payments. A mudança foi solicitada pelo usuário; a escolha da API não comprova maior segurança nem garante que uma cobrança será aceita.
+
+Os logs de recusa incluem somente status HTTP e UUID da compra, sem token, e-mail ou corpo da resposta. O cliente usa timeout de conexão de 3 segundos e leitura de 12 segundos.
+
+O webhook consulta o provedor e grava no banco antes de devolver 200. Uma consulta que falhe retorna 502 para permitir retentativa. Para responder antes desse processamento sem perder eventos seria necessária uma fila durável. A geração de uma cobrança real, a transferência Pix e a entrega pública do webhook ainda precisam ser confirmadas com a configuração do ambiente; compilar e iniciar a API não validam esse ciclo completo.

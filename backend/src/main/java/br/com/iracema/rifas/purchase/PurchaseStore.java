@@ -18,8 +18,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrder;
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderStatus;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPayment;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPaymentStatus;
 
 @Repository
 public class PurchaseStore {
@@ -110,17 +110,18 @@ public class PurchaseStore {
 	}
 
 	@Transactional
-	public void savePixOrder(UUID purchaseId, PixOrder order) {
+	public void savePixPayment(UUID purchaseId, PixPayment payment) {
 		int updated = jdbcTemplate.update("""
 				UPDATE purchase
-				SET mercado_pago_order_id = COALESCE(mercado_pago_order_id, ?),
+				SET mercado_pago_payment_id = COALESCE(mercado_pago_payment_id, ?),
 				    pix_copy_paste = COALESCE(?, pix_copy_paste),
 				    pix_qr_code_base64 = COALESCE(?, pix_qr_code_base64),
 				    payment_url = COALESCE(?, payment_url),
 				    updated_at = now()
 				WHERE id = ? AND status IN ('PENDING_PAYMENT', 'PAID')
-				  AND (mercado_pago_order_id IS NULL OR mercado_pago_order_id = ?)
-				""", order.orderId(), order.copyPaste(), order.qrCodeBase64(), order.paymentUrl(), purchaseId, order.orderId());
+				  AND mercado_pago_order_id IS NULL
+				  AND (mercado_pago_payment_id IS NULL OR mercado_pago_payment_id = ?)
+				""", payment.paymentId(), payment.copyPaste(), payment.qrCodeBase64(), payment.paymentUrl(), purchaseId, payment.paymentId());
 		if (updated != 1) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "A compra não está mais aguardando pagamento.");
 		}
@@ -150,7 +151,7 @@ public class PurchaseStore {
 	}
 
 	@Transactional
-	public void applyProviderOrder(String eventId, PixOrderStatus order, UUID purchaseId) {
+	public void applyProviderPayment(String eventId, PixPaymentStatus payment, UUID purchaseId) {
 		PurchaseHeader purchase = jdbcTemplate.queryForObject("""
 				SELECT id, status, total_cents, expires_at, pix_copy_paste, pix_qr_code_base64, payment_url
 				FROM purchase WHERE id = ? FOR UPDATE
@@ -159,25 +160,26 @@ public class PurchaseStore {
 					result.getTimestamp("expires_at").toInstant(), result.getString("pix_copy_paste"),
 					result.getString("pix_qr_code_base64"), result.getString("payment_url")), purchaseId);
 
-		String savedOrderId = jdbcTemplate.queryForObject(
-				"SELECT mercado_pago_order_id FROM purchase WHERE id = ?", String.class, purchaseId);
-		if (savedOrderId != null && !order.orderId().equals(savedOrderId)) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "A order recebida não corresponde à compra.");
+		String savedPaymentId = jdbcTemplate.queryForObject(
+				"SELECT mercado_pago_payment_id FROM purchase WHERE id = ?", String.class, purchaseId);
+		if (savedPaymentId != null && !payment.paymentId().equals(savedPaymentId)) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "O pagamento recebido não corresponde à compra.");
 		}
-		if (savedOrderId == null) {
+		if (savedPaymentId == null) {
 			int linked = jdbcTemplate.update("""
-					UPDATE purchase SET mercado_pago_order_id = ?, updated_at = now()
-					WHERE id = ? AND status = 'PENDING_PAYMENT' AND mercado_pago_order_id IS NULL
-					""", order.orderId(), purchaseId);
+					UPDATE purchase SET mercado_pago_payment_id = ?, updated_at = now()
+					WHERE id = ? AND status = 'PENDING_PAYMENT' AND mercado_pago_payment_id IS NULL
+					  AND mercado_pago_order_id IS NULL
+					""", payment.paymentId(), purchaseId);
 			if (linked != 1) {
-				throw new ResponseStatusException(HttpStatus.CONFLICT, "Não foi possível associar a order à compra.");
+				throw new ResponseStatusException(HttpStatus.CONFLICT, "Não foi possível associar o pagamento à compra.");
 			}
 		}
 
 		int inserted = jdbcTemplate.update("""
-				INSERT INTO payment_event (event_id, mercado_pago_order_id)
+				INSERT INTO payment_event (event_id, mercado_pago_payment_id)
 				VALUES (?, ?) ON CONFLICT (event_id) DO NOTHING
-				""", eventId, order.orderId());
+				""", eventId, payment.paymentId());
 		if (inserted == 0 || !"PENDING_PAYMENT".equals(purchase.status())) {
 			return;
 		}
@@ -188,10 +190,11 @@ public class PurchaseStore {
 				    payment_url = COALESCE(?, payment_url),
 				    updated_at = now()
 				WHERE id = ?
-				""", order.copyPaste(), order.qrCodeBase64(), order.paymentUrl(), purchaseId);
+				""", payment.copyPaste(), payment.qrCodeBase64(), payment.paymentUrl(), purchaseId);
 
-		if ("processed".equals(order.status())) {
-			if (!order.isApprovedPix() || order.totalPaidCents() == null || order.totalPaidCents() != purchase.totalCents()) {
+		if ("approved".equals(payment.status())) {
+			if (!payment.isApprovedPix() || payment.totalPaidCents() == null || payment.totalPaidCents() != purchase.totalCents()
+					|| payment.transactionAmountCents() == null || payment.transactionAmountCents() != purchase.totalCents()) {
 				throw new ResponseStatusException(HttpStatus.CONFLICT, "O Pix não está aprovado pelo valor integral da compra.");
 			}
 			int linkedNumbers = jdbcTemplate.queryForObject(
@@ -205,10 +208,10 @@ public class PurchaseStore {
 			if (linkedNumbers == 0 || soldNumbers != linkedNumbers) {
 				throw new ResponseStatusException(HttpStatus.CONFLICT, "Os números reservados não correspondem à compra.");
 			}
-		} else if ("cancelled".equals(order.status()) || "canceled".equals(order.status())
-				|| "expired".equals(order.status()) || "failed".equals(order.status())) {
-			String finalStatus = "expired".equals(order.status()) || "canceled".equals(order.status())
-					|| "cancelled".equals(order.status()) ? "EXPIRED" : "FAILED";
+		} else if ("cancelled".equals(payment.status()) || "canceled".equals(payment.status())
+				|| "expired".equals(payment.status()) || "rejected".equals(payment.status())) {
+			String finalStatus = "expired".equals(payment.status()) || "canceled".equals(payment.status())
+					|| "cancelled".equals(payment.status()) ? "EXPIRED" : "FAILED";
 			int linkedNumbers = jdbcTemplate.queryForObject(
 					"SELECT COUNT(*) FROM purchase_number WHERE purchase_id = ?", Integer.class, purchase.id());
 			jdbcTemplate.update("UPDATE purchase SET status = ?, updated_at = now() WHERE id = ?", finalStatus, purchase.id());

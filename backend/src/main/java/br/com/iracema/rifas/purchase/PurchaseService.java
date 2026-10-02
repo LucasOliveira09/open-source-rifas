@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import br.com.iracema.rifas.payment.MercadoPagoClient;
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrder;
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderRejectedException;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPayment;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPaymentRejectedException;
 import br.com.iracema.rifas.purchase.PurchaseStore.ReservedPurchase;
 
 @Service
@@ -30,14 +30,14 @@ public class PurchaseService {
 
 		Instant expiresAt = Instant.now().plus(mercadoPagoClient.pixExpiration());
 		ReservedPurchase purchase = purchaseStore.reserve(request, expiresAt);
-		PixOrder pixOrder;
+		PixPayment pixPayment;
 		try {
-			pixOrder = mercadoPagoClient.createPixOrder(purchase);
-		} catch (PixOrderRejectedException exception) {
+			pixPayment = mercadoPagoClient.createPixPayment(purchase);
+		} catch (PixPaymentRejectedException exception) {
 			purchaseStore.failAndRelease(purchase.id());
 			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, exception.getMessage(), exception);
 		}
-		purchaseStore.savePixOrder(purchase.id(), pixOrder);
+		purchaseStore.savePixPayment(purchase.id(), pixPayment);
 		return purchaseStore.getPurchase(purchase.id());
 	}
 

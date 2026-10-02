@@ -8,8 +8,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrder;
-import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderStatus;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPayment;
+import br.com.iracema.rifas.payment.MercadoPagoClient.PixPaymentStatus;
 import br.com.iracema.rifas.purchase.PurchaseStore.ReservedPurchase;
 import static org.assertj.core.api.Assertions.*;
 
@@ -23,11 +23,10 @@ class PurchaseStoreTests {
         return store.reserve(new PurchaseRequest("Comprador de teste", "11999999999", List.of(numbers)), Instant.now().plusSeconds(3600));
     }
 
-    private PixOrderStatus status(ReservedPurchase purchase, String state, int paidCents, String method) {
-        return new PixOrderStatus("order-" + purchase.id(), purchase.id().toString(), state,
-                "processed".equals(state) ? "accredited" : state, paidCents,
-                state, "processed".equals(state) ? "accredited" : state,
-                method, "BRL", null, null, null);
+    private PixPaymentStatus status(ReservedPurchase purchase, String state, int paidCents, String method) {
+        return new PixPaymentStatus("payment-" + purchase.id(), purchase.id().toString(), state,
+                "approved".equals(state) ? "accredited" : state, paidCents,
+                paidCents, method, "bank_transfer", "BRL", null, null, null);
     }
 
     @Test void persistsBuyerNumbersAndServerCalculatedAmount() {
@@ -54,9 +53,9 @@ class PurchaseStoreTests {
 
     @Test void confirmsApprovedPixAndDeduplicatesEvents() {
         var purchase = reserve(90);
-        var order = status(purchase, "processed", 500, "pix");
-        store.applyProviderOrder("event-" + purchase.id(), order, purchase.id());
-        store.applyProviderOrder("event-" + purchase.id(), order, purchase.id());
+        var payment = status(purchase, "approved", 500, "pix");
+        store.applyProviderPayment("event-" + purchase.id(), payment, purchase.id());
+        store.applyProviderPayment("event-" + purchase.id(), payment, purchase.id());
         assertThat(store.getPurchase(purchase.id()).status()).isEqualTo("PAID");
         assertThat(jdbc.queryForObject("SELECT status FROM raffle_number WHERE number_value = 90", String.class)).isEqualTo("PAID");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM payment_event WHERE event_id = ?", Integer.class, "event-" + purchase.id())).isEqualTo(1);
@@ -64,27 +63,27 @@ class PurchaseStoreTests {
 
     @Test void rejectsAnApprovedPixWithWrongAmount() {
         var purchase = reserve(90);
-        assertThatThrownBy(() -> store.applyProviderOrder("event-" + purchase.id(), status(purchase, "processed", 499, "pix"), purchase.id()))
+        assertThatThrownBy(() -> store.applyProviderPayment("event-" + purchase.id(), status(purchase, "approved", 499, "pix"), purchase.id()))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
         assertThat(store.getPurchase(purchase.id()).status()).isEqualTo("PENDING_PAYMENT");
     }
 
     @Test void rejectsAnotherPaymentMethod() {
         var purchase = reserve(90);
-        assertThatThrownBy(() -> store.applyProviderOrder("event-" + purchase.id(), status(purchase, "processed", 500, "credit_card"), purchase.id()))
+        assertThatThrownBy(() -> store.applyProviderPayment("event-" + purchase.id(), status(purchase, "approved", 500, "credit_card"), purchase.id()))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
     }
 
     @Test void rejectsAnOrderDifferentFromTheSavedOrder() {
         var purchase = reserve(90);
-        store.savePixOrder(purchase.id(), new PixOrder("original-order", null, null, null));
-        assertThatThrownBy(() -> store.applyProviderOrder("event-" + purchase.id(), status(purchase, "processed", 500, "pix"), purchase.id()))
+        store.savePixPayment(purchase.id(), new PixPayment("original-payment", null, null, null));
+        assertThatThrownBy(() -> store.applyProviderPayment("event-" + purchase.id(), status(purchase, "approved", 500, "pix"), purchase.id()))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
     }
 
     @Test void releasesCancelledNumberAndPreservesPurchaseHistory() {
         var purchase = reserve(90);
-        store.applyProviderOrder("event-" + purchase.id(), status(purchase, "canceled", 0, "pix"), purchase.id());
+        store.applyProviderPayment("event-" + purchase.id(), status(purchase, "canceled", 0, "pix"), purchase.id());
         assertThat(store.getPurchase(purchase.id()).status()).isEqualTo("EXPIRED");
         var retry = reserve(90);
         assertThat(retry.id()).isNotEqualTo(purchase.id());
@@ -94,8 +93,8 @@ class PurchaseStoreTests {
 
     @Test void neverReleasesPaidNumberAfterARepeatedTerminalEvent() {
         var purchase = reserve(90);
-        store.applyProviderOrder("paid-" + purchase.id(), status(purchase, "processed", 500, "pix"), purchase.id());
-        store.applyProviderOrder("cancel-" + purchase.id(), status(purchase, "canceled", 0, "pix"), purchase.id());
+        store.applyProviderPayment("paid-" + purchase.id(), status(purchase, "approved", 500, "pix"), purchase.id());
+        store.applyProviderPayment("cancel-" + purchase.id(), status(purchase, "canceled", 0, "pix"), purchase.id());
         assertThat(store.getPurchase(purchase.id()).status()).isEqualTo("PAID");
         assertThat(jdbc.queryForObject("SELECT status FROM raffle_number WHERE number_value = 90", String.class)).isEqualTo("PAID");
     }

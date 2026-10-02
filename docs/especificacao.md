@@ -9,7 +9,7 @@ Permitir que participantes vejam os prêmios e os 100 números de uma rifa da es
 - Frontend: Angular 21.
 - Backend: Java 21 e Spring Boot 4.1.1.
 - Banco de dados: PostgreSQL.
-- Pagamentos: Pix direto pelo Checkout Transparente / Orders API do Mercado Pago, com confirmação via Webhook.
+- Pagamentos: Pix direto pelo Checkout Transparente / Payments API do Mercado Pago, com confirmação via Webhook.
 
 ## Fluxo de compra
 
@@ -49,8 +49,8 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 - Página pública mostra os prêmios, o preço e a grade de 100 números.
 - Números disponíveis podem ser selecionados; reservados ou pagos não podem.
 - Formulário coleta nome e telefone antes de iniciar o checkout.
-- Após a API criar o checkout, o navegador segue para a URL do Mercado Pago.
-- A tela de retorno consulta o status da compra à API; não confia nos parâmetros de retorno para declarar pagamento aprovado.
+- Após a API criar o pagamento Pix, a página exibe o QR Code base64 e o Copia e Cola; o comprador paga pelo aplicativo do banco.
+- A página consulta o status da compra à API; não confia nos parâmetros de retorno para declarar pagamento aprovado.
 
 ## Critérios de sucesso do MVP
 
@@ -61,7 +61,7 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 - Uma notificação inválida não altera o status da compra.
 - Uma notificação repetida não duplica pagamentos ou libera números pagos.
 - O Webhook confirma o valor e o método antes de marcar os números como pagos.
-- O frontend apresenta os estados de disponibilidade e encaminha o comprador ao checkout.
+- O frontend apresenta os estados de disponibilidade e exibe o QR Code e o Copia e Cola para o comprador.
 
 ## Decisões pendentes
 
@@ -72,9 +72,9 @@ Compra com número indisponível retorna `409 Conflict`. Erros seguem um formato
 
 ## Referências oficiais
 
-- [Mercado Pago — Pix com Checkout Transparente e Orders API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/websites/pix)
-- [Mercado Pago — notificações Webhook e validação da assinatura](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/notifications)
-- [Mercado Pago — criação de orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post)
+- [Mercado Pago — Pix com Checkout Transparente e Payments API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix)
+- [Mercado Pago — notificações Webhook e validação da assinatura](https://www.mercadopago.com.br/developers/pt/docs/links-and-debts/additional-content/your-integrations/notifications/webhooks)
+- [Mercado Pago — criação de pagamentos](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-payment/post)
 - [Spring Boot — configuração JDBC, JPA e repositórios](https://docs.spring.io/spring-boot/how-to/data-access.html)
 - [Spring Boot — migrações Flyway](https://docs.spring.io/spring-boot/how-to/data-initialization.html)
 - [Angular — configuração de HttpClient](https://angular.dev/guide/http/setup)
