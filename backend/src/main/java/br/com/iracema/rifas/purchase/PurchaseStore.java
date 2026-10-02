@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import jakarta.validation.Validator;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,15 +25,14 @@ import br.com.iracema.rifas.payment.MercadoPagoClient.PixOrderStatus;
 public class PurchaseStore {
 
 	private final JdbcTemplate jdbcTemplate;
-	private final String buyerEmailDomain;
+	private final String buyerEmail;
 
-	public PurchaseStore(JdbcTemplate jdbcTemplate,
-			@Value("${app.pix.buyer-email-domain:example.com}") String buyerEmailDomain) {
+	public PurchaseStore(JdbcTemplate jdbcTemplate, Validator validator,
+			@Value("${app.pix.buyer-email:rifas@example.com}") String buyerEmail) {
 		this.jdbcTemplate = jdbcTemplate;
-		this.buyerEmailDomain = buyerEmailDomain.trim().toLowerCase(Locale.ROOT);
-		if (this.buyerEmailDomain.length() > 190 || !this.buyerEmailDomain.matches(
-				"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+")) {
-			throw new IllegalArgumentException("PIX_BUYER_EMAIL_DOMAIN deve conter um domínio válido.");
+		this.buyerEmail = buyerEmail.trim().toLowerCase(Locale.ROOT);
+		if (!validator.validate(new BuyerEmail(this.buyerEmail)).isEmpty()) {
+			throw new IllegalArgumentException("PIX_BUYER_EMAIL deve conter um e-mail válido.");
 		}
 	}
 
@@ -68,7 +71,6 @@ public class PurchaseStore {
 
 		int totalCents = Math.multiplyExact(raffle.unitPriceCents(), requestedNumbers.size());
 		UUID purchaseId = UUID.randomUUID();
-		String buyerEmail = "rifa-" + purchaseId + "@" + buyerEmailDomain;
 		jdbcTemplate.update("""
 				INSERT INTO purchase (
 					id, raffle_id, buyer_name, buyer_email, buyer_phone, total_cents, status, expires_at
@@ -228,6 +230,9 @@ public class PurchaseStore {
 	}
 
 	public record RafflePrice(long id, Integer unitPriceCents) {
+	}
+
+	private record BuyerEmail(@NotBlank @Email @Size(max = 254) String value) {
 	}
 
 	private record PurchaseHeader(
