@@ -35,7 +35,7 @@ public class PurchaseService {
 			pixOrder = mercadoPagoClient.createPixOrder(purchase);
 		} catch (PixOrderRejectedException exception) {
 			purchaseStore.failAndRelease(purchase.id());
-			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "O Mercado Pago recusou a criação do Pix.", exception);
+			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, exception.getMessage(), exception);
 		}
 		purchaseStore.savePixOrder(purchase.id(), pixOrder);
 		return purchaseStore.getPurchase(purchase.id());

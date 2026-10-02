@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ import br.com.iracema.rifas.purchase.PurchaseStore.ReservedPurchase;
 
 @Component
 public class MercadoPagoClient {
+	private static final Logger logger = LoggerFactory.getLogger(MercadoPagoClient.class);
 
 	private final RestClient restClient = RestClient.create("https://api.mercadopago.com");
 	private final String accessToken;
@@ -114,6 +117,8 @@ public class MercadoPagoClient {
 			return response;
 		} catch (RestClientResponseException exception) {
 			if (exception.getStatusCode().is4xxClientError()) {
+				logger.warn("Mercado Pago rejeitou POST /v1/orders: HTTP {}, compra {}",
+						exception.getStatusCode().value(), idempotencyKey);
 				throw new PixOrderRejectedException(exception);
 			}
 			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Não foi possível iniciar o pagamento Pix.");
@@ -189,8 +194,12 @@ public class MercadoPagoClient {
 	}
 
 	public static class PixOrderRejectedException extends RuntimeException {
-		public PixOrderRejectedException(Throwable cause) {
-			super("O Mercado Pago recusou a criação da ordem Pix.", cause);
+		public PixOrderRejectedException(RestClientResponseException cause) {
+			super(cause.getStatusCode().value() == 403
+					? "O Pix está indisponível por uma restrição na integração com o Mercado Pago."
+					: cause.getStatusCode().value() == 401
+							? "O Pix está indisponível porque o Mercado Pago não aceitou as credenciais da integração."
+							: "O Mercado Pago recusou a criação do Pix.", cause);
 		}
 	}
 }

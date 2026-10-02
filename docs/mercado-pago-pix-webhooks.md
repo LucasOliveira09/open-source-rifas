@@ -63,3 +63,16 @@ Após validar a origem, consulte `GET https://api.mercadopago.com/v1/orders/{id}
 4. Um e-mail fictício é uma configuração da aplicação; sua aceitação depende das regras do provedor. Em sandbox, o domínio precisa ser `@testuser.com`, conforme a [referência de criação](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post).
 
 O estudo não equivale a uma validação de pagamento real. O backend foi recompilado e reiniciado após mover o e-mail para o `.env`; não houve nova cobrança durante este estudo.
+
+## Diagnóstico da recusa com o token atualizado — 02/10/2026
+
+- O token configurado tem formato de produção (`APP_USR`), e `GET /users/me` retornou 200 para uma conta brasileira ativa, sem a identificação de usuário de teste.
+- `POST /v1/orders` com um corpo vazio deliberadamente inválido retornou 403 e `PA_UNAUTHORIZED_RESULT_FROM_POLICIES`: `At least one policy returned UNAUTHORIZED.` Não foram enviados dados de compra nesse diagnóstico. A recusa de autorização antecedeu a validação do corpo; essa requisição não comprova a aceitação do payload Pix completo.
+- Com o mesmo token, `GET /v1/payments/search` retornou 200. A aceitação nessa API não comprova permissão para criar Orders nem para criar pagamentos.
+- A última tentativa de compra estava `FAILED`, sem order associada. A API local retornou os 100 números como `AVAILABLE`.
+
+A [referência oficial de criação de Orders](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post) documenta restrições de aplicação/permissões para 403 e bloqueio ou revogação de chaves para esse código de política. As respostas observadas não permitem concluir que a conta inteira está bloqueada: outros recursos aceitaram o token.
+
+No painel **Suas integrações**, confira se a aplicação das credenciais está configurada para **Checkout Transparente com Orders**. Se a configuração estiver correta, contate o suporte do Mercado Pago informando a rota `POST /v1/orders`, HTTP 403 e o código `PA_UNAUTHORIZED_RESULT_FROM_POLICIES`, sem compartilhar o Access Token. A liberação depende do provedor; alterar o segredo de webhook não corrige autorização para criar Orders.
+
+O backend agora registra o status HTTP da recusa e o UUID da compra, sem token, e-mail ou corpo da resposta. A mensagem enviada ao frontend diferencia restrição de integração (403), credenciais rejeitadas (401) e outras recusas. Após a liberação, ainda é necessário validar a geração do QR Code e a confirmação por webhook.
