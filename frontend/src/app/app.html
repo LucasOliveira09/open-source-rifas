@@ -99,10 +99,7 @@
           <div class="number-grid" role="group" aria-label="Números da rifa">
             @for (ticket of numbers(); track ticket.number) {
               <button class="number-tile" [class.is-selected]="isSelected(ticket.number)" [class.is-unavailable]="ticket.status !== 'AVAILABLE'" [class.is-pending]="ticket.status === 'RESERVED'" [class.is-paid]="ticket.status === 'PAID'" [disabled]="ticket.status !== 'AVAILABLE' || purchase()?.status === 'PENDING_PAYMENT'" [attr.aria-pressed]="isSelected(ticket.number)" [attr.aria-label]="'Número ' + ticket.number + ', ' + (isSelected(ticket.number) ? 'selecionado' : statusLabel(ticket.status))" type="button" (click)="toggleNumber(ticket)">
-                @if (ticket.status === 'RESERVED') { <span class="number-status is-pending" aria-hidden="true">PIX</span> }
-                @else if (ticket.status === 'PAID') { <span class="number-status is-paid" aria-hidden="true">PAGA</span> }
-                @else { <span class="number-status" aria-hidden="true"></span> }
-                <span [class.unavailable-number]="ticket.status !== 'AVAILABLE'">{{ ticket.number.toString().padStart(2, '0') }}</span>
+                {{ ticket.number.toString().padStart(2, '0') }}
               </button>
             }
           </div>
