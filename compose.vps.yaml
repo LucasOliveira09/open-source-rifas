@@ -29,6 +29,9 @@ services:
       MERCADO_PAGO_NOTIFICATION_URL: ${MERCADO_PAGO_NOTIFICATION_URL:-}
       PIX_EXPIRATION: ${PIX_EXPIRATION:-PT24H}
       PIX_BUYER_EMAIL: ${PIX_BUYER_EMAIL:-rifas@example.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_COOKIE_SECURE: ${ADMIN_COOKIE_SECURE:-true}
     depends_on:
       db:
         condition: service_healthy

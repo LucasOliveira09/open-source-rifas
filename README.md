@@ -48,6 +48,14 @@ npm start
 
 O Angular ficará disponível em `http://localhost:4200`. A API Spring Boot usa `http://localhost:8080`.
 
+### Painel administrativo
+
+Acesse `http://localhost:4200/admin` e entre com as credenciais administrativas definidas em `ADMIN_USERNAME` e `ADMIN_PASSWORD_HASH` no `.env`. A senha é armazenada como hash PBKDF2, nunca em texto simples. A sessão é protegida por cookie e CSRF; em HTTPS, mantenha `ADMIN_COOKIE_SECURE=true`.
+
+Para configurar ou trocar as credenciais sem gravar a senha no histórico do terminal, execute `./scripts/Set-AdminCredentials.ps1`. Para outro arquivo, como `.env.vps`, use `./scripts/Set-AdminCredentials.ps1 -EnvironmentFile .env.vps`. Reinicie o backend depois da alteração.
+
+O painel lista todas as rifas e compras confirmadas, com comprador, contato e números pagos. A pesquisa encontra a compra pelo número escolhido. “Sortear próximo número” escolhe aleatoriamente um número pago que ainda não foi sorteado; cada resultado é gravado no PostgreSQL com sequência, horário e usuário administrador.
+
 O banco é preparado automaticamente pelo Flyway quando a API iniciar. As migrações criam a rifa e seus números de 1 a 100. Cada número custa R$ 5,00. Os prêmios também serão exibidos assim que forem cadastrados.
 
 O Spring Boot lê as variáveis do `.env` ao iniciar, e o Docker Compose usa o mesmo arquivo para o banco. O código Pix vence após 24 horas por padrão; ajuste `PIX_EXPIRATION` no formato ISO 8601, de 30 minutos a 30 dias.
@@ -62,7 +70,7 @@ Opcionalmente, defina `MERCADO_PAGO_NOTIFICATION_URL` no `.env` com a URL públi
 
 O contrato da criação do Pix, o recebimento de webhooks e a comparação com a documentação oficial estão em [docs/mercado-pago-pix-webhooks.md](docs/mercado-pago-pix-webhooks.md).
 
-O fluxo e as decisões pendentes estão em [docs/especificacao.md](docs/especificacao.md). A tela pública, as consultas da rifa, o formulário de compra e a integração Pix estão implementados. O checkout permanece desabilitado até que as credenciais do Mercado Pago sejam configuradas. Os prêmios ainda precisam ser cadastrados; não há painel administrativo nesta primeira etapa.
+O fluxo e as decisões pendentes estão em [docs/especificacao.md](docs/especificacao.md). A tela pública, o painel administrativo, as consultas da rifa, o formulário de compra e a integração Pix estão implementados. O checkout permanece desabilitado até que as credenciais do Mercado Pago sejam configuradas. Os prêmios ainda precisam ser cadastrados.
 
 ## Implantar em VPS com acesso Tailscale
 
@@ -74,7 +82,7 @@ Na VPS Linux, instale Docker com o plugin Compose e Tailscale, conecte a VPS à 
 cp .env.example .env.vps
 ```
 
-Edite `.env.vps` e defina uma senha forte para `POSTGRES_PASSWORD`. O preço da rifa é R$ 5,00 por número. Enquanto as credenciais do Mercado Pago estiverem vazias, a página abre, mas o checkout permanece desativado.
+Edite `.env.vps` e defina uma senha forte para `POSTGRES_PASSWORD`. No seu computador, configure as credenciais administrativas com `./scripts/Set-AdminCredentials.ps1 -EnvironmentFile .env.vps`, depois transfira esse arquivo para a VPS por um canal seguro. Deixe `ADMIN_COOKIE_SECURE=true` para o HTTPS do Tailscale Serve. O preço da rifa é R$ 5,00 por número. Enquanto as credenciais do Mercado Pago estiverem vazias, a página abre, mas o checkout permanece desativado.
 
 Construa e inicie os serviços:
 

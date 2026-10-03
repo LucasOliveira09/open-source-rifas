@@ -1,0 +1,143 @@
+<main class="admin-page">
+  <header class="admin-topbar">
+    <a class="admin-brand" routerLink="/" aria-label="Voltar para a página da rifa">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span><strong>SEBRAE</strong><small>3º ANO A E B · ADMINISTRAÇÃO</small></span>
+    </a>
+    @if (authenticated()) {
+      <div class="account-tools">
+        <span class="account-name">{{ username() }}</span>
+        <button class="quiet-button" type="button" (click)="signOut()">Sair</button>
+      </div>
+    } @else {
+      <a class="back-link" routerLink="/">Voltar ao site <span aria-hidden="true">↗</span></a>
+    }
+  </header>
+
+  @if (!authenticated()) {
+    <section class="login-layout" aria-labelledby="login-title">
+      <div class="login-intro">
+        <p class="eyebrow">ÁREA RESTRITA</p>
+        <h1 id="login-title">Painel da<br /><em>rifa escolar.</em></h1>
+        <p>Acompanhe as vendas confirmadas e faça o sorteio dos números pagos.</p>
+        <div class="login-stamp"><strong>100</strong><span>NÚMEROS<br />POR RIFA</span></div>
+      </div>
+      <form class="login-card" [formGroup]="loginForm" (ngSubmit)="signIn()">
+        <div class="card-kicker"><span></span> ACESSO ADMINISTRATIVO</div>
+        <h2>Entrar no painel</h2>
+        <p class="card-description">Use as credenciais da secretaria para continuar.</p>
+        <label for="admin-username">Usuário</label>
+        <input id="admin-username" autocomplete="username" formControlName="username" required />
+        <label for="admin-password">Senha</label>
+        <input id="admin-password" type="password" autocomplete="current-password" formControlName="password" required />
+        @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+        <button class="primary-button login-button" type="submit" [disabled]="submitting() || loading()">
+          {{ submitting() ? 'Verificando…' : loading() ? 'Preparando acesso…' : 'Entrar' }}
+          <span aria-hidden="true">→</span>
+        </button>
+        <p class="secure-note"><span aria-hidden="true">▣</span> Acesso protegido por sessão segura</p>
+      </form>
+    </section>
+  } @else {
+    <section class="dashboard" aria-labelledby="dashboard-title">
+      <div class="dashboard-heading">
+        <div>
+          <p class="eyebrow">SECRETARIA · VISÃO GERAL</p>
+          <h1 id="dashboard-title">Painel da <em>rifa.</em></h1>
+          <p class="subtitle">Vendas confirmadas, números e sorteios em um só lugar.</p>
+        </div>
+        <span class="live-mark"><i></i> DADOS DO BANCO</span>
+      </div>
+
+      @if (error()) { <p class="alert dashboard-alert" role="alert">{{ error() }}</p> }
+      @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+      @if (loading()) {
+        <div class="loading-state" role="status">Carregando rifas…</div>
+      } @else if (raffles().length === 0) {
+        <div class="empty-state"><span class="empty-icon">—</span><h2>Nenhuma rifa cadastrada</h2><p>Quando houver uma rifa no sistema, ela aparecerá aqui.</p></div>
+      } @else {
+        <div class="raffle-tabs" role="tablist" aria-label="Selecione uma rifa">
+          @for (raffle of raffles(); track raffle.id) {
+            <button class="raffle-tab" [class.active]="selectedRaffle()?.id === raffle.id" type="button"
+              role="tab" [attr.aria-selected]="selectedRaffle()?.id === raffle.id" (click)="chooseRaffle(raffle)">
+              <span class="tab-index">{{ $index + 1 | number:'2.0' }}</span>
+              <span class="tab-copy"><strong>{{ raffle.title }}</strong><small>{{ raffleStatus(raffle.status) }}</small></span>
+              <span class="tab-arrow" aria-hidden="true">↗</span>
+            </button>
+          }
+        </div>
+
+        @if (selectedRaffle(); as raffle) {
+          <div class="stats-grid">
+            <article class="stat-card"><span>NUMEROS PAGOS</span><strong>{{ raffle.paidNumbers | number:'2.0' }}<small> / {{ raffle.totalNumbers }}</small></strong><p>Compras confirmadas pelo pagamento</p></article>
+            <article class="stat-card"><span>AGUARDANDO PIX</span><strong>{{ raffle.reservedNumbers | number:'2.0' }}</strong><p>Números reservados temporariamente</p></article>
+            <article class="stat-card"><span>VALOR POR NÚMERO</span><strong>{{ raffle.unitPriceCents === null ? '—' : (raffle.unitPriceCents / 100 | currency:'BRL') }}</strong><p>Preço configurado para esta rifa</p></article>
+            <article class="stat-card draw-stat"><span>SORTEIOS REALIZADOS</span><strong>{{ raffle.drawCount | number:'2.0' }}</strong><p>Números já sorteados e registrados</p></article>
+          </div>
+
+          <section class="workspace-grid">
+            <article class="panel buyers-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">VENDAS CONFIRMADAS</p><h2>Quem comprou</h2></div>
+                <span class="record-count">{{ purchases().length }} registros</span>
+              </div>
+              <form class="search-bar" [formGroup]="searchForm" (ngSubmit)="searchNumber()">
+                <label class="search-input-wrap" for="number-search"><span aria-hidden="true">⌕</span>
+                  <input id="number-search" type="search" inputmode="numeric" placeholder="Pesquisar pelo número (1 a 100)" formControlName="number" />
+                </label>
+                <button class="search-button" type="submit">Pesquisar</button>
+                @if (searchForm.invalid && searchForm.controls.number.touched) { <span class="field-hint">Número entre 1 e 100</span> }
+              </form>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>COMPRADOR</th><th>CONTATO</th><th>NÚMERO(S)</th><th>PAGAMENTO</th></tr></thead>
+                  <tbody>
+                    @for (purchase of purchases(); track purchase.id) {
+                      <tr>
+                        <td><strong>{{ purchase.buyerName }}</strong></td>
+                        <td><span>{{ purchase.buyerEmail }}</span><small>{{ purchase.buyerPhone }}</small></td>
+                        <td><span class="number-pills">@for (number of purchase.numbers.split(', '); track number) { <b>{{ number.padStart(2, '0') }}</b> }</span></td>
+                        <td><span class="paid-mark"><i></i> Pago</span><small>{{ purchase.paidAt | date:'dd/MM/yyyy HH:mm' }}</small></td>
+                      </tr>
+                    } @empty {
+                      <tr><td class="empty-table" colspan="4">Nenhuma compra paga encontrada para esta pesquisa.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <aside class="panel draw-panel">
+              <div class="panel-heading draw-heading">
+                <div><p class="eyebrow">SORTEIO ALEATÓRIO</p><h2>Sortear número</h2></div>
+                <span class="draw-icon" aria-hidden="true">✳</span>
+              </div>
+              <p class="draw-copy">O sistema escolhe um número entre as compras pagas que ainda não foram sorteadas. Cada número só pode ganhar uma vez.</p>
+              <button class="primary-button draw-button" type="button" [disabled]="submitting() || raffle.paidNumbers <= raffle.drawCount" (click)="drawNext()">
+                {{ submitting() ? 'Sorteando…' : 'Sortear próximo número' }} <span aria-hidden="true">↗</span>
+              </button>
+              @if (latestDraw(); as result) {
+                <div class="winner-card" aria-live="polite">
+                  <span class="winner-label">RESULTADO DO SORTEIO {{ result.sequence | number:'2.0' }}</span>
+                  <strong>{{ formatNumber(result.number) }}</strong>
+                  <span class="winner-name">{{ result.buyerName }}</span>
+                  <small>{{ result.drawnAt | date:'dd/MM/yyyy HH:mm' }}</small>
+                </div>
+              }
+              <div class="draw-history">
+                <div class="history-title"><strong>Histórico</strong><span>{{ draws().length }}</span></div>
+                @for (draw of draws(); track draw.sequence) {
+                  <div class="history-row"><b>{{ formatNumber(draw.number) }}</b><span><strong>{{ draw.buyerName }}</strong><small>Sorteio {{ draw.sequence }} · {{ draw.drawnAt | date:'dd/MM/yyyy HH:mm' }}</small></span><i aria-label="Sorteado">✓</i></div>
+                } @empty {
+                  <p class="history-empty">Os resultados dos sorteios aparecerão aqui.</p>
+                }
+              </div>
+            </aside>
+          </section>
+        }
+      }
+      <footer class="admin-footer"><span>SEBRAE · 3º ANO A E B</span><span>Área administrativa restrita</span></footer>
+    </section>
+  }
+</main>
