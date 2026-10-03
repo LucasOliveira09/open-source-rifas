@@ -73,6 +73,7 @@ public class AdminSecurityConfig {
         http
                 .userDetailsService(adminUserDetailsService)
                 .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/purchases", "/api/purchases/**", "/api/webhooks/**")
                         .csrfTokenRepository(csrfRepository)
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
                 .authorizeHttpRequests(auth -> auth
